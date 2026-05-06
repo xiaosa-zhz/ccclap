@@ -12,23 +12,19 @@
 
 #include <fmt/core.h>
 
+// cstring_view: a string view that guarantees null-termination at data()[size()]
+// Copy from P3655
+
 namespace clap {
 
-// ---------------------------------------------------------------------------
-// cstring_like concept
-// ---------------------------------------------------------------------------
 template <typename T>
 concept cstring_like = requires(const T& t) {
     { t.c_str() } -> std::same_as<const typename T::value_type*>;
 };
 
-// ---------------------------------------------------------------------------
-// basic_cstring_view
-// ---------------------------------------------------------------------------
 template <class charT, class traits = std::char_traits<charT>>
 class basic_cstring_view {
 public:
-    // types
     using traits_type               = traits;
     using value_type                = charT;
     using pointer                   = value_type*;
@@ -48,9 +44,6 @@ private:
     static constexpr charT empty_cstr[1]{};
 
 public:
-    // -----------------------------------------------------------------------
-    // construction and assignment
-    // -----------------------------------------------------------------------
     constexpr basic_cstring_view() noexcept : size_(0) {
         data_ = std::data(empty_cstr);
     }
@@ -71,9 +64,6 @@ public:
     constexpr basic_cstring_view(const cstring_like auto& r)
         : basic_cstring_view(r.c_str(), r.size()) {}
 
-    // -----------------------------------------------------------------------
-    // iterator support
-    // -----------------------------------------------------------------------
     constexpr const_iterator         begin()   const noexcept { return data_; }
     constexpr const_iterator         end()     const noexcept { return data_ + size_; }
     constexpr const_iterator         cbegin()  const noexcept { return begin(); }
@@ -83,9 +73,6 @@ public:
     constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
     constexpr const_reverse_iterator crend()   const noexcept { return rend(); }
 
-    // -----------------------------------------------------------------------
-    // capacity
-    // -----------------------------------------------------------------------
     constexpr size_type size()     const noexcept { return size_; }
     constexpr size_type length()   const noexcept { return size_; }
     constexpr size_type max_size() const noexcept {
@@ -93,9 +80,6 @@ public:
     }
     [[nodiscard]] constexpr bool empty() const noexcept { return size_ == 0; }
 
-    // -----------------------------------------------------------------------
-    // element access
-    // -----------------------------------------------------------------------
     constexpr const_reference operator[](size_type pos) const {
         assert(pos <= size_);
         return data_[pos];
@@ -122,23 +106,16 @@ public:
     constexpr const_pointer data()  const noexcept { return data_; }
     constexpr const_pointer c_str() const noexcept { return data_; }
 
-    // -----------------------------------------------------------------------
-    // conversion to string_view
-    // -----------------------------------------------------------------------
     constexpr operator std::basic_string_view<charT, traits>() const noexcept {
         return std::basic_string_view<charT, traits>{data_, size_};
     }
 
-    // -----------------------------------------------------------------------
-    // modifiers
-    // -----------------------------------------------------------------------
     constexpr void remove_prefix(size_type n) {
         assert(n <= size());
         data_ += n;
         size_ -= n;
     }
 
-    // remove_suffix cannot preserve null termination — use two-arg substr instead
     constexpr void remove_suffix(size_type n) = delete(
         "cannot remove_suffix in-place on cstring_view while retaining "
         "null terminator. Use substr(pos, n) instead.");
@@ -148,14 +125,10 @@ public:
         std::swap(size_, s.size_);
     }
 
-    // -----------------------------------------------------------------------
-    // string operations
-    // -----------------------------------------------------------------------
     constexpr size_type copy(charT* s, size_type n, size_type pos = 0) const {
         return std::basic_string_view<charT, traits>(*this).copy(s, n, pos);
     }
 
-    // Single-arg substr/subview: keeps the null terminator → returns cstring_view
     constexpr basic_cstring_view substr(size_type pos = 0) const {
         return basic_cstring_view{data_ + pos, size_ - pos};
     }
@@ -163,7 +136,6 @@ public:
         return substr(pos);
     }
 
-    // Two-arg substr/subview: may chop the null terminator → returns string_view
     constexpr std::basic_string_view<charT, traits> substr(size_type pos, size_type n) const {
         return std::basic_string_view<charT, traits>(*this).substr(pos, n);
     }
@@ -171,9 +143,6 @@ public:
         return substr(pos, n);
     }
 
-    // -----------------------------------------------------------------------
-    // compare
-    // -----------------------------------------------------------------------
     constexpr int compare(std::basic_string_view<charT, traits> s) const noexcept {
         return std::basic_string_view<charT, traits>(*this).compare(s);
     }
@@ -194,9 +163,6 @@ public:
         return std::basic_string_view<charT, traits>(*this).compare(pos1, n1, s, n2);
     }
 
-    // -----------------------------------------------------------------------
-    // starts_with / ends_with
-    // -----------------------------------------------------------------------
     constexpr bool starts_with(std::basic_string_view<charT, traits> x) const noexcept {
         return std::basic_string_view<charT, traits>(*this).starts_with(x);
     }
@@ -216,9 +182,6 @@ public:
         return std::basic_string_view<charT, traits>(*this).ends_with(x);
     }
 
-    // -----------------------------------------------------------------------
-    // contains (C++23)
-    // -----------------------------------------------------------------------
     constexpr bool contains(std::basic_string_view<charT, traits> x) const noexcept {
         return std::basic_string_view<charT, traits>(*this).contains(x);
     }
@@ -229,9 +192,6 @@ public:
         return std::basic_string_view<charT, traits>(*this).contains(x);
     }
 
-    // -----------------------------------------------------------------------
-    // searching
-    // -----------------------------------------------------------------------
     constexpr size_type find(std::basic_string_view<charT, traits> s, size_type pos = 0) const noexcept {
         return std::basic_string_view<charT, traits>(*this).find(s, pos);
     }
@@ -311,9 +271,6 @@ public:
         return std::basic_string_view<charT, traits>(*this).find_last_not_of(s, pos);
     }
 
-    // -----------------------------------------------------------------------
-    // comparison operators (hidden friends)
-    // -----------------------------------------------------------------------
     friend constexpr bool operator==(basic_cstring_view x, basic_cstring_view y) noexcept {
         return std::basic_string_view<charT, traits>(x) == std::basic_string_view<charT, traits>(y);
     }
@@ -322,31 +279,22 @@ public:
     }
 
 private:
-    const_pointer data_;   // exposition only
-    size_type     size_;   // exposition only
+    const_pointer data_;
+    size_type     size_;
 };
 
-// ---------------------------------------------------------------------------
-// deduction guides
-// ---------------------------------------------------------------------------
 template <class It, class End>
 basic_cstring_view(It, End) -> basic_cstring_view<std::iter_value_t<It>>;
 
 template <cstring_like R>
 basic_cstring_view(R&&) -> basic_cstring_view<typename std::remove_cvref_t<R>::value_type>;
 
-// ---------------------------------------------------------------------------
-// ostream operator<<
-// ---------------------------------------------------------------------------
 template <class charT, class traits>
 std::basic_ostream<charT, traits>& operator<<(std::basic_ostream<charT, traits>& os,
                                               basic_cstring_view<charT, traits>  str) {
     return os << std::basic_string_view<charT, traits>(str);
 }
 
-// ---------------------------------------------------------------------------
-// literal suffix _csv
-// ---------------------------------------------------------------------------
 inline namespace literals {
 inline namespace cstring_view_literals {
 
@@ -369,9 +317,6 @@ consteval basic_cstring_view<wchar_t> operator""_csv(const wchar_t* str, std::si
 } // namespace cstring_view_literals
 } // namespace literals
 
-// ---------------------------------------------------------------------------
-// convenience type aliases
-// ---------------------------------------------------------------------------
 using cstring_view    = basic_cstring_view<char>;
 using u8cstring_view  = basic_cstring_view<char8_t>;
 using u16cstring_view = basic_cstring_view<char16_t>;
@@ -380,9 +325,6 @@ using wcstring_view   = basic_cstring_view<wchar_t>;
 
 } // namespace clap
 
-// ---------------------------------------------------------------------------
-// std::formatter specialization
-// ---------------------------------------------------------------------------
 template <class charT, class traits>
 struct std::formatter<clap::basic_cstring_view<charT, traits>, charT> {
     constexpr auto parse(std::basic_format_parse_context<charT>& ctx) {
@@ -399,14 +341,10 @@ private:
     std::formatter<std::basic_string_view<charT, traits>, charT> sv_fmt_;
 };
 
-// fmt::formatter — delegates to std::formatter
 template <class charT, class traits>
 struct fmt::formatter<clap::basic_cstring_view<charT, traits>, charT>
     : std::formatter<clap::basic_cstring_view<charT, traits>, charT> {};
 
-// ---------------------------------------------------------------------------
-// std::hash specializations
-// ---------------------------------------------------------------------------
 template <>
 struct std::hash<clap::cstring_view> {
     auto operator()(const clap::cstring_view& sv) const noexcept {
