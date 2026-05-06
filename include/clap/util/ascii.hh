@@ -1,6 +1,6 @@
 #pragma once
-#ifndef CCCLAP_UTIL_H
-#define CCCLAP_UTIL_H 1
+#ifndef CCCLAP_UTIL_ASCII_H
+#define CCCLAP_UTIL_ASCII_H 1
 
 #include <compare>
 #include <utility>
@@ -151,4 +151,4 @@ constexpr int digit_value(T c) noexcept
 
 } // namespace clap::ascii
 
-#endif // CCCLAP_UTIL_H
+#endif // CCCLAP_UTIL_ASCII_H

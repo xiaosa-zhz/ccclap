@@ -1,8 +1,8 @@
 #include <fmt/core.h>
 
 #include <clap/util/cstring.hh>
+#include <clap/util/ascii.hh>
 #include <string>
-#include <iostream>
 
 using namespace clap;
 
@@ -13,7 +13,7 @@ int main() {
 
     // 1. construct from string literal
     cstring_view hello = "Hello, cstring_view!";
-    std::cout << hello << '\n';
+    fmt::println("{}", hello);
 
     // 2. construct from std::string
     std::string s = "from std::string";
@@ -52,6 +52,52 @@ int main() {
 
     // 11. hash
     fmt::println("hash: {}", std::hash<cstring_view>{}(hello));
+
+    // --- clap::ascii demo ---
+
+    fmt::println("");
+
+    // 1. is_digit / is_hex_digit / is_octal_digit / is_bit
+    fmt::println("is_digit('5'):   {}", clap::ascii::is_digit('5'));
+    fmt::println("is_digit('a'):   {}", clap::ascii::is_digit('a'));
+    fmt::println("is_digit('z', 36): {}", clap::ascii::is_digit('z', 36));
+    fmt::println("is_hex_digit('F'): {}", clap::ascii::is_hex_digit('F'));
+    fmt::println("is_octal_digit('8'): {}", clap::ascii::is_octal_digit('8'));
+    fmt::println("is_bit('1'): {}", clap::ascii::is_bit('1'));
+
+    // 2. is_lower / is_upper / is_alphabetic / is_alphanumeric
+    fmt::println("is_lower('g'):  {}", clap::ascii::is_lower('g'));
+    fmt::println("is_upper('G'):  {}", clap::ascii::is_upper('G'));
+    fmt::println("is_alphabetic('H'): {}", clap::ascii::is_alphabetic('H'));
+    fmt::println("is_alphanumeric('9'): {}", clap::ascii::is_alphanumeric('9'));
+    fmt::println("is_alphanumeric('_'): {}", clap::ascii::is_alphanumeric('_'));
+
+    // 3. is_whitespace / is_horizontal_whitespace / is_control / is_printing
+    fmt::println("is_whitespace('\\n'): {}", clap::ascii::is_whitespace('\n'));
+    fmt::println("is_whitespace('\\t'): {}", clap::ascii::is_whitespace('\t'));
+    fmt::println("is_horizontal_whitespace('\\t'): {}", clap::ascii::is_horizontal_whitespace('\t'));
+    fmt::println("is_horizontal_whitespace('\\n'): {}", clap::ascii::is_horizontal_whitespace('\n'));
+    fmt::println("is_control('\\x01'): {}", clap::ascii::is_control('\x01'));
+    fmt::println("is_control('A'): {}", clap::ascii::is_control('A'));
+    fmt::println("is_printing('!'): {}", clap::ascii::is_printing('!'));
+    fmt::println("is_printing(' '): {}", clap::ascii::is_printing(' '));
+    fmt::println("is_punctuation(','): {}", clap::ascii::is_punctuation(','));
+    fmt::println("is_punctuation('A'): {}", clap::ascii::is_punctuation('A'));
+
+    // 4. to_lower / to_upper
+    fmt::println("to_lower('X'): {}", clap::ascii::to_lower('X'));
+    fmt::println("to_upper('y'): {}", clap::ascii::to_upper('y'));
+    fmt::println("to_lower('9'): {}", clap::ascii::to_lower('9'));
+
+    // 5. case_insensitive_compare / case_insensitive_equals
+    fmt::println("case_insensitive_equals('a','A'): {}", clap::ascii::case_insensitive_equals('a', 'A'));
+    fmt::println("case_insensitive_equals('a','B'): {}", clap::ascii::case_insensitive_equals('a', 'B'));
+
+    // 6. digit_value
+    fmt::println("digit_value('7'): {}", clap::ascii::digit_value('7'));
+    fmt::println("digit_value('A'): {}", clap::ascii::digit_value('A'));
+    fmt::println("digit_value('f'): {}", clap::ascii::digit_value('f'));
+    fmt::println("digit_value('G'): {}", clap::ascii::digit_value('G'));
 
     return 0;
 }
