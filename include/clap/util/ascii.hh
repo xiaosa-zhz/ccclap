@@ -12,9 +12,8 @@ namespace clap::ascii {
 
 template <typename T>
 constexpr bool is_digit(T c, int base) noexcept
+    pre (base >= 2 && base <= 36)
 {
-    if (base < 2 || base > 36)
-        std::unreachable();
     auto v = static_cast<char32_t>(c);
     return (v >= U'0' && v < U'0' + (base < 10 ? base : 10))
         || (v >= U'a' && v < U'a' + (base > 10 ? base - 10 : 0))
