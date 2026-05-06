@@ -1,0 +1,29 @@
+# xmake — build output & cache
+.xmake/
+build/
+
+# Editors
+.vscode/
+.idea/
+.vs/
+*.swp
+*.swo
+*~
+\#*\#
+.DS_Store
+Thumbs.db
+
+# LLM agents
+.copilot/
+.cursor/
+.continue/
+.cline/
+.windsurf/
+.trae/
+.comate/
+.gemini/
+.claude/
+.aider*
+.kiro/
+.cody/
+.roo/
