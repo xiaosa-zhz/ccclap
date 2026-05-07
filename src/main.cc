@@ -43,8 +43,8 @@ int main() {
 
     // 9. literal _csv
     using namespace clap::literals;
-    cstring_view lit = "compile-time literal"_csv;
-    fmt::println("_csv literal: {}", lit);
+    constexpr static cstring_view lit = "compile-time literal: {}"_csv;
+    fmt::println(lit, "_csv literal"_csv);
 
     // 10. comparison
     fmt::println("hello == \"Hello, cstring_view!\"_csv: {}",

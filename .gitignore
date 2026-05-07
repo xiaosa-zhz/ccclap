@@ -4,6 +4,7 @@ build/
 
 # Editors
 .vscode/
+.clangd
 .idea/
 .vs/
 *.swp

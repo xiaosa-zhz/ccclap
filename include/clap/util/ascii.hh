@@ -3,7 +3,6 @@
 #define CCCLAP_UTIL_ASCII_H 1
 
 #include <compare>
-#include <utility>
 
 // ASCII character classification and manipulation utilities
 // Copy from P3688
