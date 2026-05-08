@@ -2,7 +2,9 @@
 #ifndef CCCLAP_UTIL_INTERNATIONALIZATION_H
 #define CCCLAP_UTIL_INTERNATIONALIZATION_H 1
 
+#ifndef CCCLAP_DISABLE_NATIVE_LANGUAGE
 #include <libintl.h>
+#endif // !CCCLAP_DISABLE_NATIVE_LANGUAGE
 
 #include <cstdio>
 #include <concepts>
@@ -18,6 +20,20 @@ namespace clap::i18n {
 
 namespace details {
 
+#ifdef CCCLAP_DISABLE_NATIVE_LANGUAGE
+
+constexpr const char* gettext(const char* msgid) noexcept {
+    return msgid;
+}
+
+#else // vvv !CCCLAP_DISABLE_NATIVE_LANGUAGE
+
+inline const char* gettext(const char* msgid) noexcept {
+    return ::gettext(msgid);
+}
+
+#endif // CCCLAP_DISABLE_NATIVE_LANGUAGE
+
 template<typename CharT>
 class dynamic_format_cstring
 {
@@ -32,7 +48,7 @@ public:
 
 } // namespace clap::i18n::details
 
-constexpr details::dynamic_format_cstring<char> dynamic_format(cstring_view s) noexcept {
+constexpr auto dynamic_format(cstring_view s) noexcept {
     return details::dynamic_format_cstring<char>(s);
 }
 
@@ -61,43 +77,43 @@ using format_cstring = basic_format_cstring<char, Args...>;
 
 template<typename... Args>
 std::string format(std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
-    const char* translated_fmt = ::gettext(fmt.c_str());
+    const char* translated_fmt = details::gettext(fmt.c_str());
     return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename Out, typename... Args>
 auto format_to(Out out, std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
-    const char* translated_fmt = ::gettext(fmt.c_str());
+    const char* translated_fmt = details::gettext(fmt.c_str());
     return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename Out, typename... Args>
 auto format_to_n(Out out, size_t n, std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
-    const char* translated_fmt = ::gettext(fmt.c_str());
+    const char* translated_fmt = details::gettext(fmt.c_str());
     return fmt::vformat_to_n(std::move(out), n, translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename... Args>
 void print(std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
-    const char* translated_fmt = ::gettext(fmt.c_str());
+    const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprint(translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename... Args>
 void print(FILE* f, std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
-    const char* translated_fmt = ::gettext(fmt.c_str());
+    const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprint(f, translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename... Args>
 void println(std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
-    const char* translated_fmt = ::gettext(fmt.c_str());
+    const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprintln(stdout, translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename... Args>
 void println(FILE* f, std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
-    const char* translated_fmt = ::gettext(fmt.c_str());
+    const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprintln(f, translated_fmt, fmt::make_format_args(args...));
 }
 
