@@ -264,6 +264,13 @@ void plural_println(FILE* f,
     fmt::vprintln(f, translated_fmt, fmt::make_format_args(args...));
 }
 
+constexpr std::string to_string(int value) { return format("{}", value); }
+constexpr std::string to_string(long value) { return format("{}", value); }
+constexpr std::string to_string(long long value) { return format("{}", value); }
+constexpr std::string to_string(unsigned int value) { return format("{}", value); }
+constexpr std::string to_string(unsigned long value) { return format("{}", value); }
+constexpr std::string to_string(unsigned long long value) { return format("{}", value); }
+
 } // namespace clap::i18n
 
 #endif // !CCCLAP_UTIL_INTERNATIONALIZATION_H
