@@ -11,6 +11,7 @@
 #include <meta>
 #include <type_traits>
 #include <string>
+#include <iterator>
 
 #include <fmt/core.h>
 #include <fmt/xchar.h>
@@ -117,14 +118,14 @@ std::string format(format_cstring<Args...> fmt, Args&&... args) {
     return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
 }
 
-template<typename Out, typename... Args>
+template<std::output_iterator<char> Out, typename... Args>
 auto format_to(Out out, format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
 }
 
-template<typename Out, typename... Args>
-auto format_to_n(Out out, size_t n, format_cstring<Args...> fmt, Args&&... args) {
+template<std::output_iterator<char> Out, typename... Args>
+auto format_to_n(Out out, std::iter_reference_t<Out> n, format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     return fmt::vformat_to_n(std::move(out), n, translated_fmt, fmt::make_format_args(args...));
 }
@@ -136,7 +137,7 @@ void print(format_cstring<Args...> fmt, Args&&... args) {
 }
 
 template<typename... Args>
-void print(FILE* f, format_cstring<Args...> fmt, Args&&... args) {
+void print(FILE* f, format_cstring<Args...> fmt, Args&&... args) pre (f != nullptr) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprint(f, translated_fmt, fmt::make_format_args(args...));
 }
@@ -148,7 +149,7 @@ void println(format_cstring<Args...> fmt, Args&&... args) {
 }
 
 template<typename... Args>
-void println(FILE* f, format_cstring<Args...> fmt, Args&&... args) {
+void println(FILE* f, format_cstring<Args...> fmt, Args&&... args) pre (f != nullptr) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprintln(f, translated_fmt, fmt::make_format_args(args...));
 }
@@ -160,15 +161,15 @@ std::string plural_format(format_cstring<Args...> fmt, format_cstring<Args...> f
     return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
 }
 
-template<typename Out, typename... Args>
+template<std::output_iterator<char> Out, typename... Args>
 auto plural_format_to(Out out, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
     const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
         details::extract_plural_arg(args...));
     return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
 }
 
-template<typename Out, typename... Args>
-auto plural_format_to_n(Out out, size_t n, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+template<std::output_iterator<char> Out, typename... Args>
+auto plural_format_to_n(Out out, std::iter_reference_t<Out> n, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
     const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
         details::extract_plural_arg(args...));
     return fmt::vformat_to_n(std::move(out), n, translated_fmt, fmt::make_format_args(args...));
@@ -182,7 +183,7 @@ void plural_print(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plura
 }
 
 template<typename... Args>
-void plural_print(FILE* f, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+void plural_print(FILE* f, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) pre (f != nullptr) {
     const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
         details::extract_plural_arg(args...));
     fmt::vprint(f, translated_fmt, fmt::make_format_args(args...));
@@ -196,7 +197,7 @@ void plural_println(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plu
 }
 
 template<typename... Args>
-void plural_println(FILE* f, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+void plural_println(FILE* f, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) pre (f != nullptr) {
     const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
         details::extract_plural_arg(args...));
     fmt::vprintln(f, translated_fmt, fmt::make_format_args(args...));
