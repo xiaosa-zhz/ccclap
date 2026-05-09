@@ -126,7 +126,7 @@ public:
     }
 
     constexpr basic_cstring_view substr(size_type pos = 0) const {
-        return basic_cstring_view{data_ + pos, size_ - pos};
+        return basic_cstring_view(data_ + pos, size_ - pos);
     }
     constexpr basic_cstring_view subview(size_type pos = 0) const {
         return substr(pos);
@@ -329,19 +329,19 @@ inline namespace literals {
 inline namespace cstring_view_literals {
 
 consteval basic_cstring_view<char> operator""_csv(const char* str, std::size_t len) noexcept {
-    return basic_cstring_view<char>{str, len};
+    return basic_cstring_view<char>(str, len);
 }
 consteval basic_cstring_view<char8_t> operator""_csv(const char8_t* str, std::size_t len) noexcept {
-    return basic_cstring_view<char8_t>{str, len};
+    return basic_cstring_view<char8_t>(str, len);
 }
 consteval basic_cstring_view<char16_t> operator""_csv(const char16_t* str, std::size_t len) noexcept {
-    return basic_cstring_view<char16_t>{str, len};
+    return basic_cstring_view<char16_t>(str, len);
 }
 consteval basic_cstring_view<char32_t> operator""_csv(const char32_t* str, std::size_t len) noexcept {
-    return basic_cstring_view<char32_t>{str, len};
+    return basic_cstring_view<char32_t>(str, len);
 }
 consteval basic_cstring_view<wchar_t> operator""_csv(const wchar_t* str, std::size_t len) noexcept {
-    return basic_cstring_view<wchar_t>{str, len};
+    return basic_cstring_view<wchar_t>(str, len);
 }
 
 } // namespace cstring_view_literals
