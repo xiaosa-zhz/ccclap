@@ -99,5 +99,7 @@ int main() {
     println("digit_value('f'): {}", clap::ascii::digit_value('f'));
     println("digit_value('G'): {}", clap::ascii::digit_value('G'));
 
+    plural_println("There is {} file, {}", "There are {} files, {}", plural(2uz), 2uz);
+
     return 0;
 }

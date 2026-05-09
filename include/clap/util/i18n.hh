@@ -8,6 +8,7 @@
 
 #include <cstdio>
 #include <concepts>
+#include <meta>
 #include <type_traits>
 #include <string>
 
@@ -18,6 +19,12 @@
 
 namespace clap::i18n {
 
+template<std::unsigned_integral T>
+struct plural {
+    T n;
+    friend constexpr T format_as(const plural& p) noexcept { return p.n; }
+};
+
 namespace details {
 
 #ifdef CCCLAP_DISABLE_NATIVE_LANGUAGE
@@ -26,10 +33,18 @@ constexpr const char* gettext(const char* msgid) noexcept {
     return msgid;
 }
 
+constexpr const char* ngettext(const char* msgid, const char* msgid_plural, unsigned long n) noexcept {
+    return n == 1 ? msgid : msgid_plural;
+}
+
 #else // vvv !CCCLAP_DISABLE_NATIVE_LANGUAGE
 
 inline const char* gettext(const char* msgid) noexcept {
     return ::gettext(msgid);
+}
+
+inline const char* ngettext(const char* msgid, const char* msgid_plural, unsigned long n) noexcept {
+    return ::ngettext(msgid, msgid_plural, n);
 }
 
 #endif // CCCLAP_DISABLE_NATIVE_LANGUAGE
@@ -45,6 +60,29 @@ public:
     dynamic_format_cstring& operator=(const dynamic_format_cstring&) = delete;
     constexpr basic_cstring_view<CharT> get() const noexcept { return str; }
 };
+
+constexpr unsigned long extract_plural_arg(auto&... _) noexcept {
+    auto& chosen = [:[self = std::meta::current_function()] consteval {
+        std::meta::info found = {};
+        for (auto param : parameters_of(self)) {
+            auto arg = variable_of(param);
+            auto raw = remove_cvref(type_of(arg));
+            if (has_template_arguments(raw)) {
+                if (template_of(raw) == ^^plural) {
+                    if (found != std::meta::info{}) {
+                        throw std::meta::exception("multiple plural arguments found", self);
+                    }
+                    found = arg;
+                }
+            }
+        }
+        if (found == std::meta::info{}) {
+            throw std::meta::exception("no plural argument found", self);
+        }
+        return found;
+    }():];
+    return static_cast<unsigned long>(chosen.n);
+}
 
 } // namespace clap::i18n::details
 
@@ -73,47 +111,96 @@ private:
 };
 
 template<typename... Args>
-using format_cstring = basic_format_cstring<char, Args...>;
+using format_cstring = std::type_identity_t<basic_format_cstring<char, Args...>>;
 
 template<typename... Args>
-std::string format(std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
+std::string format(format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename Out, typename... Args>
-auto format_to(Out out, std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
+auto format_to(Out out, format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename Out, typename... Args>
-auto format_to_n(Out out, size_t n, std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
+auto format_to_n(Out out, size_t n, format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     return fmt::vformat_to_n(std::move(out), n, translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename... Args>
-void print(std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
+void print(format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprint(translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename... Args>
-void print(FILE* f, std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
+void print(FILE* f, format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprint(f, translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename... Args>
-void println(std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
+void println(format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
     fmt::vprintln(stdout, translated_fmt, fmt::make_format_args(args...));
 }
 
 template<typename... Args>
-void println(FILE* f, std::type_identity_t<format_cstring<Args...>> fmt, Args&&... args) {
+void println(FILE* f, format_cstring<Args...> fmt, Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
+    fmt::vprintln(f, translated_fmt, fmt::make_format_args(args...));
+}
+
+template<typename... Args>
+std::string plural_format(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+        details::extract_plural_arg(args...));
+    return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
+}
+
+template<typename Out, typename... Args>
+auto plural_format_to(Out out, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+        details::extract_plural_arg(args...));
+    return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
+}
+
+template<typename Out, typename... Args>
+auto plural_format_to_n(Out out, size_t n, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+        details::extract_plural_arg(args...));
+    return fmt::vformat_to_n(std::move(out), n, translated_fmt, fmt::make_format_args(args...));
+}
+
+template<typename... Args>
+void plural_print(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+        details::extract_plural_arg(args...));
+    fmt::vprint(translated_fmt, fmt::make_format_args(args...));
+}
+
+template<typename... Args>
+void plural_print(FILE* f, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+        details::extract_plural_arg(args...));
+    fmt::vprint(f, translated_fmt, fmt::make_format_args(args...));
+}
+
+template<typename... Args>
+void plural_println(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+        details::extract_plural_arg(args...));
+    fmt::vprintln(stdout, translated_fmt, fmt::make_format_args(args...));
+}
+
+template<typename... Args>
+void plural_println(FILE* f, format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
+    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+        details::extract_plural_arg(args...));
     fmt::vprintln(f, translated_fmt, fmt::make_format_args(args...));
 }
 
