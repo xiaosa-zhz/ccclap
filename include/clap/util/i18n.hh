@@ -66,14 +66,12 @@ constexpr unsigned long extract_plural_arg(auto&... _) noexcept {
         std::meta::info found = {};
         for (auto param : parameters_of(self)) {
             auto arg = variable_of(param);
-            auto raw = remove_cvref(type_of(arg));
-            if (has_template_arguments(raw)) {
-                if (template_of(raw) == ^^plural) {
-                    if (found != std::meta::info{}) {
-                        throw std::meta::exception("multiple plural arguments found", self);
-                    }
-                    found = arg;
+            auto type = remove_cvref(type_of(arg));
+            if (has_template_arguments(type) && template_of(type) == ^^plural) {
+                if (found != std::meta::info{}) {
+                    throw std::meta::exception("multiple plural arguments found", self);
                 }
+                found = arg;
             }
         }
         if (found == std::meta::info{}) {
