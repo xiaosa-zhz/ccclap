@@ -61,7 +61,7 @@ public:
     constexpr basic_cstring_view<CharT> get() const noexcept { return str; }
 };
 
-constexpr unsigned long extract_plural_arg(auto&... _) noexcept {
+constexpr unsigned long extract_plural_arg(auto&...) noexcept {
     auto& chosen = [:[self = std::meta::current_function()] consteval {
         std::meta::info found = {};
         for (auto param : parameters_of(self)) {
