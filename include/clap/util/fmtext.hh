@@ -15,10 +15,11 @@
 
 #include <fmt/core.h>
 #include <fmt/xchar.h>
+#include <fmt/compile.h>
 
 #include <clap/util/cstring.hh>
 
-namespace clap::i18n {
+namespace clap::fmtext {
 
 template<std::unsigned_integral T>
 struct plural {
@@ -53,14 +54,31 @@ inline const char* ngettext(const char* msgid, const char* msgid_plural, unsigne
 template<typename CharT>
 class dynamic_format_cstring
 {
-private:
-    basic_cstring_view<CharT> str;
 public:
-    constexpr dynamic_format_cstring(basic_cstring_view<CharT> s) noexcept : str(s) {}
+    constexpr dynamic_format_cstring(basic_cstring_view<CharT> s) noexcept : str_(s) {}
     dynamic_format_cstring(const dynamic_format_cstring&) = delete;
     dynamic_format_cstring& operator=(const dynamic_format_cstring&) = delete;
-    constexpr basic_cstring_view<CharT> get() const noexcept { return str; }
+    constexpr basic_cstring_view<CharT> get() const noexcept { return str_; }
+private:
+    basic_cstring_view<CharT> str_;
 };
+
+template<const char* S>
+struct compiled_string : fmt::compiled_string
+{
+    using char_type = char;
+    constexpr operator fmt::basic_string_view<char>() const noexcept { return S; }
+};
+
+template<typename CompiledString, typename... Args>
+constexpr std::string format(Args&&... args) {
+    return fmt::format(CompiledString{}, std::forward<Args>(args)...);
+}
+
+template<typename CompiledString, std::output_iterator<char> Out, typename... Args>
+constexpr Out format_to(Out out, Args&&... args) {
+    return fmt::format_to(std::move(out), CompiledString{}, std::forward<Args>(args)...);
+}
 
 constexpr unsigned long extract_plural_arg(auto&...) noexcept {
     auto& chosen = [:[self = std::meta::current_function()] consteval {
@@ -113,22 +131,37 @@ template<typename... Args>
 using format_cstring = std::type_identity_t<basic_format_cstring<char, Args...>>;
 
 template<typename... Args>
-std::string format(format_cstring<Args...> fmt, Args&&... args) {
-    const char* translated_fmt = details::gettext(fmt.c_str());
-    return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
+constexpr std::string format(format_cstring<Args...> fmt, Args&&... args) {
+    if consteval {
+        return extract<std::string(*)(Args&&...)>(substitute(^^details::format, {
+            substitute(^^details::compiled_string, { std::meta::reflect_constant_string(fmt.get()) }),
+            ^^Args...
+        }))(std::forward<Args>(args)...);
+    } else {
+        const char* translated_fmt = details::gettext(fmt.c_str());
+        return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
+    }
 }
 
 template<std::output_iterator<char> Out, typename... Args>
-auto format_to(Out out,
-               format_cstring<Args...> fmt,
-               Args&&... args) {
-    const char* translated_fmt = details::gettext(fmt.c_str());
-    return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
+constexpr Out format_to(Out out, format_cstring<Args...> fmt, Args&&... args) {
+    if consteval {
+        return extract<Out(*)(Out, Args&&...)>(
+            substitute(^^details::format_to, {
+                substitute(^^details::compiled_string, { std::meta::reflect_constant_string(fmt.get()) }),
+                ^^Out,
+                ^^Args...
+            })
+        )(std::move(out), std::forward<Args>(args)...);
+    } else {
+        const char* translated_fmt = details::gettext(fmt.c_str());
+        return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
+    }
 }
 
 template<std::output_iterator<char> Out, typename... Args>
 auto format_to_n(Out out,
-                 std::iter_reference_t<Out> n,
+                 std::iter_difference_t<Out> n,
                  format_cstring<Args...> fmt,
                  Args&&... args) {
     const char* translated_fmt = details::gettext(fmt.c_str());
@@ -184,7 +217,7 @@ auto plural_format_to(Out out,
 
 template<std::output_iterator<char> Out, typename... Args>
 auto plural_format_to_n(Out out,
-                        std::iter_reference_t<Out> n,
+                        std::iter_difference_t<Out> n,
                         format_cstring<Args...> fmt,
                         format_cstring<Args...> fmt_plural,
                         Args&&... args) {
