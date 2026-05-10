@@ -1,6 +1,6 @@
 #pragma once
-#ifndef CCCLAP_UTIL_INTERNATIONALIZATION_H
-#define CCCLAP_UTIL_INTERNATIONALIZATION_H 1
+#ifndef CCCLAP_UTIL_I18N_H
+#define CCCLAP_UTIL_I18N_H 1
 
 #ifndef CCCLAP_DISABLE_NATIVE_LANGUAGE
 #include <libintl.h>
@@ -273,4 +273,4 @@ constexpr std::string to_string(unsigned long long value) { return format("{}", 
 
 } // namespace clap::i18n
 
-#endif // !CCCLAP_UTIL_INTERNATIONALIZATION_H
+#endif // !CCCLAP_UTIL_I18N_H
