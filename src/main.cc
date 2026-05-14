@@ -2,6 +2,11 @@
 #include <clap/util/ascii.hh>
 #include <clap/util/fmtext.hh>
 #include <string>
+#include <string_view>
+#include <vector>
+#include <ranges>
+#include <bit>
+#include <fmt/ranges.h>
 #include <nowide/args.hpp>
 
 using namespace clap;
@@ -14,8 +19,40 @@ inline constexpr const char* test_format_to = std::define_static_string([] {
     return s;
 }());
 
+consteval void test_exec_coding_utf8() {
+    constexpr char    test0[] = "\u00E9\u00A9\u00ED\00FD";
+    constexpr char8_t test1[] = u8"\u00E9\u00A9\u00ED\00FD";
+    for (auto [c, c8] : std::views::zip(test0, test1)) {
+        if (static_cast<char8_t>(c) != c8) {
+            throw std::meta::exception("Must use UTF-8 encoding for source files", {});
+        }
+    }
+}
+
+struct cli_arg {
+    std::string_view original;
+    std::string_view value;
+    friend constexpr std::string_view format_as(const cli_arg& arg) noexcept {
+        return arg.value;
+    }
+};
+
+void parse(int argc, char** argv) {
+    test_exec_coding_utf8();
+    char** old_argv = argv;
+    nowide::args _(argc, argv);
+    char** new_argv = argv;
+    auto args = std::views::zip(std::span(old_argv, argc), std::span(new_argv, argc))
+        | std::views::transform([](const auto& pair) {
+            const auto& [old_arg, new_arg] = pair;
+            return cli_arg{std::string_view(old_arg), std::string_view(new_arg)};
+        })
+        | std::ranges::to<std::vector>();
+    fmtext::println("{}", args);
+}
+
 int main(int argc, char** argv) {
-    nowide::args args(argc, argv);
+    parse(argc, argv);
     fmtext::println(test_format_to);
     fmtext::println("Hello, world from fmt + C++26!");
 

@@ -1,7 +1,7 @@
 add_rules("mode.debug", "mode.release")
-
 add_requires("fmt")
 add_requires("nowide_standalone")
+set_encodings("utf-8")
 
 target("ccclap")
     set_kind("binary")
