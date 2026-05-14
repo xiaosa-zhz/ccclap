@@ -2,6 +2,7 @@
 #include <clap/util/ascii.hh>
 #include <clap/util/fmtext.hh>
 #include <string>
+#include <nowide/args.hpp>
 
 using namespace clap;
 
@@ -13,7 +14,8 @@ inline constexpr const char* test_format_to = std::define_static_string([] {
     return s;
 }());
 
-int main() {
+int main(int argc, char** argv) {
+    nowide::args args(argc, argv);
     fmtext::println(test_format_to);
     fmtext::println("Hello, world from fmt + C++26!");
 
