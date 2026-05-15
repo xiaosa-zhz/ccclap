@@ -8,4 +8,14 @@ namespace clap {
 
 } // namespace clap
 
+/*
+
+struct command {
+
+int arg;
+
+};
+
+*/
+
 #endif // !CCCLAP_CLAP_ALL_H
