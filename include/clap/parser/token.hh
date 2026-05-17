@@ -2,12 +2,10 @@
 #ifndef CCCLAP_LEX_LEXER_H
 #define CCCLAP_LEX_LEXER_H 1
 
+#include <concepts>
 #include <string_view>
 #include <charconv>
-#include <array>
-#include <algorithm>
 #include <compare>
-#include <concepts>
 #include <iterator>
 #include <ranges>
 
@@ -24,39 +22,33 @@ enum class token_kind {
     unknown,
 };
 
-constexpr bool is_stdio(std::string_view arg) noexcept {
-    return arg == "-";
-}
-
-constexpr bool is_positional_escape(std::string_view arg) noexcept {
-    return arg == "--";
-}
-
-constexpr bool is_short_option(std::string_view arg) noexcept {
-    return arg.size() >= 2 && arg[0] == '-' && arg[1] != '-';
-}
-
-constexpr bool is_long_option(std::string_view arg) noexcept {
-    return arg.size() >= 3 && arg.starts_with("--");
-}
-
-constexpr bool is_negative_number(std::string_view arg) noexcept {
-    if (arg.size() < 2) return false;
-    if (arg[0] != '-') return false;
-    [[maybe_unused]] std::size_t res = 0;
-    auto [_, ec] = std::from_chars(arg.data() + 1, arg.data() + arg.size(), res);
-    return ec == std::errc();
-}
-
-constexpr void func(std::string_view arg) noexcept
-    pre (!arg.empty())
-{
-
-}
-
 struct token {
     std::string_view text;
     std::string_view origin;
+
+    constexpr bool is_stdio() const noexcept {
+        return text == "-";
+    }
+
+    constexpr bool is_positional_escape() const noexcept {
+        return text == "--";
+    }
+
+    constexpr bool is_short_option() const noexcept {
+        return text.size() >= 2 && text[0] == '-' && text[1] != '-';
+    }
+
+    constexpr bool is_long_option() const noexcept {
+        return text.size() >= 3 && text.starts_with("--");
+    }
+
+    constexpr bool is_negative_number() const noexcept {
+        if (text.size() < 2) return false;
+        if (text[0] != '-') return false;
+        [[maybe_unused]] std::size_t res = 0;
+        auto [_, ec] = std::from_chars(text.data() + 1, text.data() + text.size(), res);
+        return ec == std::errc();
+    }
 };
 
 class token_view : public std::ranges::view_interface<token_view>
