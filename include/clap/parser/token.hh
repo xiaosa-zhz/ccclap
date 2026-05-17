@@ -22,6 +22,9 @@ enum class token_kind {
     unknown,
 };
 
+// TODO:
+//  - try_parse_* and these function needs to adapt to result value type
+
 struct token {
     std::string_view text;
     std::string_view origin;
