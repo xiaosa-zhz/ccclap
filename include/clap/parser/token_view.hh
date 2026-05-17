@@ -55,18 +55,21 @@ constexpr void func(std::string_view arg) noexcept
 }
 
 struct token {
-    std::string_view origin;
     std::string_view text;
+    std::string_view origin;
 };
 
 class token_view : public std::ranges::view_interface<token_view>
 {
 public:
-    token_view() = default;
-    token_view(const token_view&) = default;
-    token_view& operator=(const token_view&) = default;
+    constexpr token_view() noexcept = default;
+    constexpr token_view(const token_view&) noexcept = default;
+    constexpr token_view& operator=(const token_view&) noexcept = default;
 
     constexpr token_view(int argc, const char** argv, const char** original_argv) noexcept
+        pre (argc >= 0)
+        pre (argv != nullptr)
+        pre (original_argv != nullptr)
         : original_argv(original_argv), argv(argv), argc(argc)
     {}
 
@@ -84,8 +87,8 @@ public:
         constexpr iterator& operator=(const iterator&) noexcept = default;
 
         constexpr reference operator*() const noexcept {
-            token res = { *original_argv, *argv };
-            return res;
+            contract_assert(*argv != nullptr && *original_argv != nullptr);
+            return { *argv, *original_argv };
         }
 
         constexpr reference operator[](difference_type n) const noexcept {
@@ -144,21 +147,25 @@ public:
         }
 
         friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) noexcept {
+            contract_assert((lhs.argv - rhs.argv) == (lhs.original_argv - rhs.original_argv));
             return lhs.argv - rhs.argv;
         }
 
         friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept {
-            return lhs.argv == rhs.argv
-                && lhs.original_argv == rhs.original_argv;
+            contract_assert((lhs.original_argv == rhs.original_argv) == (lhs.argv == rhs.argv));
+            return lhs.argv == rhs.argv;
         }
 
         friend constexpr std::strong_ordering operator<=>(const iterator& lhs, const iterator& rhs) noexcept {
+            contract_assert((lhs.original_argv <=> rhs.original_argv) == (lhs.argv <=> rhs.argv));
             return lhs.argv <=> rhs.argv;
         }
 
     private:
         friend class token_view;
         constexpr iterator(const char** argv, const char** original_argv) noexcept
+            pre (argv != nullptr)
+            pre (original_argv != nullptr)
             : argv(argv), original_argv(original_argv)
         {}
 
