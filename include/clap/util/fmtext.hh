@@ -159,6 +159,12 @@ constexpr Out format_to(Out out, format_cstring<Args...> fmt, Args&&... args) {
     }
 }
 
+template<typename Container, typename... Args>
+    requires requires (Container& c, char ch) { c.push_back(ch); }
+constexpr auto format_append(Container& c, format_cstring<Args...> fmt, Args&&... args) {
+    return format_to(std::back_inserter(c), fmt, std::forward<Args>(args)...);
+}
+
 template<std::output_iterator<char> Out, typename... Args>
 auto format_to_n(Out out,
                  std::iter_difference_t<Out> n,
