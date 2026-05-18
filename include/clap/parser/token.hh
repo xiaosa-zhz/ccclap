@@ -61,11 +61,11 @@ public:
     constexpr token_view(const token_view&) noexcept = default;
     constexpr token_view& operator=(const token_view&) noexcept = default;
 
-    constexpr token_view(int argc, const char** argv, const char** original_argv) noexcept
+    constexpr token_view(int argc, const char** argv, const char** original_argv)
         pre (argc >= 0)
         pre (argv != nullptr)
         pre (original_argv != nullptr)
-        : original_argv(original_argv), argv(argv), argc(argc)
+        : argv(argv), original_argv(original_argv), argc(argc)
     {}
 
     class iterator
@@ -81,22 +81,28 @@ public:
         constexpr iterator(const iterator&) noexcept = default;
         constexpr iterator& operator=(const iterator&) noexcept = default;
 
-        constexpr reference operator*() const noexcept {
+        constexpr reference operator*() const {
             contract_assert(*argv != nullptr && *original_argv != nullptr);
-            return { *argv, *original_argv };
+            return { .text = *argv, .origin = *original_argv };
         }
 
-        constexpr reference operator[](difference_type n) const noexcept {
+        constexpr reference operator[](difference_type n) const {
             return *(*this + n);
         }
 
-        constexpr iterator& operator++() noexcept {
+        constexpr iterator& operator++()
+            post (r : r.argv != nullptr)
+            post (r : r.original_argv != nullptr)
+        {
             ++argv;
             ++original_argv;
             return *this;
         }
 
-        constexpr iterator operator++(int) noexcept {
+        constexpr iterator operator++(int)
+            post (r : r.argv != nullptr)
+            post (r : r.original_argv != nullptr)
+        {
             auto copy = *this;
             ++(*this);
             return copy;
@@ -141,24 +147,27 @@ public:
             return it;
         }
 
-        friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) noexcept {
-            contract_assert((lhs.argv - rhs.argv) == (lhs.original_argv - rhs.original_argv));
+        friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs)
+            pre ((lhs.argv - rhs.argv) == (lhs.original_argv - rhs.original_argv))
+        {
             return lhs.argv - rhs.argv;
         }
 
-        friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept {
-            contract_assert((lhs.original_argv == rhs.original_argv) == (lhs.argv == rhs.argv));
+        friend constexpr bool operator==(const iterator& lhs, const iterator& rhs)
+            pre ((lhs.argv == rhs.argv) == (lhs.original_argv == rhs.original_argv))
+        {
             return lhs.argv == rhs.argv;
         }
 
-        friend constexpr std::strong_ordering operator<=>(const iterator& lhs, const iterator& rhs) noexcept {
-            contract_assert((lhs.original_argv <=> rhs.original_argv) == (lhs.argv <=> rhs.argv));
+        friend constexpr std::strong_ordering operator<=>(const iterator& lhs, const iterator& rhs)
+            pre ((lhs.original_argv <=> rhs.original_argv) == (lhs.argv <=> rhs.argv))
+        {
             return lhs.argv <=> rhs.argv;
         }
 
     private:
         friend class token_view;
-        constexpr iterator(const char** argv, const char** original_argv) noexcept
+        constexpr iterator(const char** argv, const char** original_argv)
             pre (argv != nullptr)
             pre (original_argv != nullptr)
             : argv(argv), original_argv(original_argv)
@@ -168,16 +177,8 @@ public:
         const char** original_argv = nullptr;
     };
 
-    constexpr iterator begin() noexcept {
-        return iterator(argv, original_argv);
-    }
-
     constexpr iterator begin() const noexcept {
         return iterator(argv, original_argv);
-    }
-
-    constexpr iterator end() noexcept {
-        return iterator(argv + argc, original_argv + argc);
     }
 
     constexpr iterator end() const noexcept {
@@ -189,8 +190,8 @@ public:
     }
 
 private:
-    const char** original_argv = nullptr;
     const char** argv = nullptr;
+    const char** original_argv = nullptr;
     int argc = 0;
 };
 

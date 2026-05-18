@@ -101,12 +101,13 @@ constexpr unsigned long extract_plural_arg(auto&...) noexcept {
     return static_cast<unsigned long>(chosen.n);
 }
 
-} // namespace clap::i18n::details
+} // namespace clap::fmtext::details
 
 constexpr auto dynamic_format(cstring_view s) noexcept {
     return details::dynamic_format_cstring<char>(s);
 }
 
+// Why cstring_view? Because it guarantees null-termination, which is required for gettext.
 template<typename CharT, typename... Args>
 class basic_format_cstring
 {
@@ -149,8 +150,7 @@ constexpr Out format_to(Out out, format_cstring<Args...> fmt, Args&&... args) {
         return extract<Out(*)(Out, Args&&...)>(
             substitute(^^details::format_to, {
                 substitute(^^details::compiled_string, { std::meta::reflect_constant_string(fmt.get()) }),
-                ^^Out,
-                ^^Args...
+                ^^Out, ^^Args...
             })
         )(std::move(out), std::forward<Args>(args)...);
     } else {
