@@ -112,6 +112,10 @@ template<typename CharT, typename... Args>
 class basic_format_cstring
 {
 public:
+    basic_format_cstring() = delete;
+    constexpr basic_format_cstring(const basic_format_cstring&) = default;
+    constexpr basic_format_cstring& operator=(const basic_format_cstring&) = default;
+
     template<std::convertible_to<basic_cstring_view<CharT>> T>
     consteval basic_format_cstring(const T& str)
         : str_((((void)fmt::basic_format_string<CharT, Args...>(str)), str))
