@@ -2,9 +2,6 @@
 #ifndef CCCLAP_UTIL_ASCII_H
 #define CCCLAP_UTIL_ASCII_H 1
 
-#include <utility>
-#include <compare>
-
 // ASCII character classification and manipulation utilities
 // Copy from P3688
 
@@ -14,7 +11,7 @@ template <typename T>
 constexpr bool is_digit(T c, int base)
     pre (base >= 2 && base <= 36)
 {
-    if (base < 2 || base > 36) std::unreachable();
+    [[assume(base >= 2 && base <= 36)]];
     auto v = static_cast<char32_t>(c);
     return (v >= U'0' && v < U'0' + (base < 10 ? base : 10))
         || (v >= U'a' && v < U'a' + (base > 10 ? base - 10 : 0))
@@ -112,7 +109,7 @@ constexpr T to_upper(T c) noexcept {
 }
 
 template <typename T>
-constexpr std::strong_ordering case_insensitive_compare(T a, T b) noexcept {
+constexpr auto case_insensitive_compare(T a, T b) noexcept {
     return to_upper(a) <=> to_upper(b);
 }
 
