@@ -90,19 +90,13 @@ public:
             return *(*this + n);
         }
 
-        constexpr iterator& operator++()
-            post (r : r.argv != nullptr)
-            post (r : r.original_argv != nullptr)
-        {
+        constexpr iterator& operator++() noexcept {
             ++argv;
             ++original_argv;
             return *this;
         }
 
-        constexpr iterator operator++(int)
-            post (r : r.argv != nullptr)
-            post (r : r.original_argv != nullptr)
-        {
+        constexpr iterator operator++(int) noexcept {
             auto copy = *this;
             ++(*this);
             return copy;
