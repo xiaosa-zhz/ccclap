@@ -35,4 +35,4 @@ constexpr bool is_negative_number() const noexcept {
 
 } // namespace clap
 
-#endif // CCCLAP_PARSER_PARSER_GENERATOR_HH
+#endif // !CCCLAP_PARSER_PARSER_GENERATOR_HH

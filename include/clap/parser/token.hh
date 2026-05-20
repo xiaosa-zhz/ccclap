@@ -1,18 +1,19 @@
 #pragma once
-#ifndef CCCLAP_LEX_LEXER_H
-#define CCCLAP_LEX_LEXER_H 1
+#ifndef CCCLAP_PARSER_TOKEN_H
+#define CCCLAP_PARSER_TOKEN_H 1
 
 #include <concepts>
-#include <string_view>
 #include <compare>
 #include <iterator>
 #include <ranges>
 
+#include <clap/util/cstring.hh>
+
 namespace clap {
 
 struct token {
-    std::string_view text;
-    std::string_view origin;
+    cstring_view text;
+    cstring_view origin;
 };
 
 class token_view : public std::ranges::view_interface<token_view>
@@ -42,12 +43,11 @@ public:
         constexpr iterator(const iterator&) noexcept = default;
         constexpr iterator& operator=(const iterator&) noexcept = default;
 
-        constexpr reference operator*() const {
-            contract_assert(*argv != nullptr && *original_argv != nullptr);
+        constexpr reference operator*() const noexcept {
             return { .text = *argv, .origin = *original_argv };
         }
 
-        constexpr reference operator[](difference_type n) const {
+        constexpr reference operator[](difference_type n) const noexcept {
             return *(*this + n);
         }
 
@@ -102,29 +102,21 @@ public:
             return it;
         }
 
-        friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs)
-            pre ((lhs.argv - rhs.argv) == (lhs.original_argv - rhs.original_argv))
-        {
+        friend constexpr difference_type operator-(const iterator& lhs, const iterator& rhs) noexcept {
             return lhs.argv - rhs.argv;
         }
 
-        friend constexpr bool operator==(const iterator& lhs, const iterator& rhs)
-            pre ((lhs.argv == rhs.argv) == (lhs.original_argv == rhs.original_argv))
-        {
+        friend constexpr bool operator==(const iterator& lhs, const iterator& rhs) noexcept {
             return lhs.argv == rhs.argv;
         }
 
-        friend constexpr std::strong_ordering operator<=>(const iterator& lhs, const iterator& rhs)
-            pre ((lhs.original_argv <=> rhs.original_argv) == (lhs.argv <=> rhs.argv))
-        {
+        friend constexpr std::strong_ordering operator<=>(const iterator& lhs, const iterator& rhs) noexcept {
             return lhs.argv <=> rhs.argv;
         }
 
     private:
         friend class token_view;
-        constexpr iterator(const char** argv, const char** original_argv)
-            pre (argv != nullptr)
-            pre (original_argv != nullptr)
+        constexpr iterator(const char** argv, const char** original_argv) noexcept
             : argv(argv), original_argv(original_argv)
         {}
 
@@ -155,4 +147,4 @@ static_assert(std::same_as<std::iter_reference_t<token_view::iterator>, token>);
 
 } // namespace clap
 
-#endif // CCCLAP_LEX_LEXER_H
+#endif // !CCCLAP_PARSER_TOKEN_H

@@ -130,4 +130,4 @@ constexpr int digit_value(T c) noexcept {
 
 } // namespace clap::ascii
 
-#endif // CCCLAP_UTIL_ASCII_H
+#endif // !CCCLAP_UTIL_ASCII_H
