@@ -15,6 +15,10 @@ struct short_arg_annot {
     consteval static short_arg_annot operator()(char name, bool is_hidden = false) noexcept {
         return { .short_name = name, .hidden = is_hidden };
     }
+
+    constexpr bool from_member_name() const noexcept {
+        return short_name == '\0';
+    }
 };
 
 inline constexpr short_arg_annot short_arg = {};
@@ -26,6 +30,10 @@ struct long_arg_annot {
     consteval static long_arg_annot operator()(std::string_view name, bool is_hidden = false) noexcept {
         return { .long_name = name, .hidden = is_hidden };
     }
+
+    constexpr bool from_member_name() const noexcept {
+        return long_name.empty();
+    }
 };
 
 inline constexpr long_arg_annot long_arg = {};
@@ -36,16 +44,19 @@ struct positional_annot {
     consteval static positional_annot operator()(std::size_t position) noexcept {
         return { .pos = position };
     }
+
+    constexpr bool from_member_position() const noexcept {
+        return pos == std::numeric_limits<std::size_t>::max();
+    }
 };
 
 inline constexpr positional_annot positional = {};
 
 struct arg_annot {
-    union arg_config {
-        short_arg_annot short_arg;
-        long_arg_annot long_arg;
-        positional_annot positional;
-    } config;
+    // TODO
+    short_arg_annot short_arg;
+    long_arg_annot long_arg;
+    positional_annot positional;
 };
 
 inline constexpr arg_annot arg = {};
