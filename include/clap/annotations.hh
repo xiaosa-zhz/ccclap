@@ -51,15 +51,21 @@ struct long_arg_annot {
             std::string_view name,
             bool is_hidden = false,
             std::source_location loc = std::source_location::current()) {
+        auto name_info = std::meta::reflect_constant_string(name);
         if (name.empty()) {
             throw std::meta::exception("long argument name cannot be empty",
-                std::meta::reflect_constant_string(name), loc);
+                name_info, loc);
+        }
+        if (name.starts_with('-') || name.starts_with('_') || name.ends_with('-') || name.ends_with('_')) {
+            throw std::meta::exception(
+                "long argument name cannot start or end with hyphen or underscore",
+                name_info, loc);
         }
         for (char c : name) {
             if (!(clap::ascii::is_alphanumeric(c) || c == '-' || c == '_')) {
                 throw std::meta::exception(
                     "long argument name can only contains alphanumeric, hyphens, and/or underscores",
-                    std::meta::reflect_constant_string(name), loc);
+                    name_info, loc);
             }
         }
         return { .long_name = std::define_static_string(name),
@@ -125,13 +131,13 @@ struct named_arg_annot {
                 throw std::meta::exception(fmtext::format("invalid bracket notation in '{}'", name),
                     std::meta::reflect_constant_string(name), loc);
             }
-            sa = short_arg_annot{}(name[bo + 1], is_hidden, loc);
+            sa = clap::short_arg(name[bo + 1], is_hidden, loc);
             std::string ln(name.substr(0, bo));
             ln += name.substr(bc + 1);
-            la = long_arg_annot{}(ln, is_hidden, loc);
+            la = clap::long_arg(ln, is_hidden, loc);
         } else {
-            sa = short_arg_annot{}(name[0], is_hidden, loc);
-            la = long_arg_annot{}(name, is_hidden, loc);
+            sa = clap::short_arg(name[0], is_hidden, loc);
+            la = clap::long_arg(name, is_hidden, loc);
         }
         return result;
     }
@@ -144,13 +150,13 @@ struct named_arg_annot {
             std::source_location loc = std::source_location::current()) {
         named_arg_annot result;
         auto& [sa, la] = result;
-        sa = short_arg_annot{}(short_name, is_hidden, loc);
-        la = long_arg_annot{}(long_style, is_hidden, loc);
+        sa = clap::short_arg(short_name, is_hidden, loc);
+        la = clap::long_arg(long_style, is_hidden, loc);
         return result;
     }
 };
 
-// Generate both short and long arguments.
+// Generate both short and long named arguments.
 // If more complex configuration is needed, short_arg and long_arg can be
 // specified separately.
 inline constexpr named_arg_annot arg = {};

@@ -4,6 +4,8 @@
 
 #include <meta>
 
+#include <clap/annotations.hh>
+
 namespace clap {
 
 // TODO
