@@ -7,6 +7,7 @@
 #include <string_view>
 #include <limits>
 #include <source_location>
+#include <variant>
 
 #include <clap/util/ascii.hh>
 #include <clap/util/fmtext.hh>
@@ -178,6 +179,70 @@ struct help_annot {
 // Generate help text for an argument.
 // Example: `[[=help("Name of the person to greet")]]`.
 inline constexpr help_annot help{};
+
+struct shadow_parent_annot {};
+
+// Mark a argument can shadow argument with the same name in parent command.
+inline constexpr shadow_parent_annot shadow_parent{};
+
+template<typename... CMDs>
+using subcommands = std::variant<std::monostate, CMDs...>;
+
+struct subcommand_name_annot {
+    const char* name = nullptr;
+    style command_name_style = style::kebab;
+
+    static consteval subcommand_name_annot operator()(
+            std::string_view name,
+            std::source_location loc = std::source_location::current()) {
+        auto name_info = std::meta::reflect_constant_string(name);
+        if (name.empty()) {
+            throw std::meta::exception("subcommand name cannot be empty", name_info, loc);
+        }
+        if (name.starts_with('-') || name.starts_with('_') || name.ends_with('-') || name.ends_with('_')) {
+            throw std::meta::exception(
+                "subcommand name cannot start or end with hyphen or underscore",
+                name_info, loc);
+        }
+        for (char c : name) {
+            if (!(clap::ascii::is_alphanumeric(c) || c == '-' || c == '_')) {
+                throw std::meta::exception(
+                    "subcommand name can only contains alphanumeric, hyphens, and/or underscores",
+                    name_info, loc);
+            }
+        }
+        return { .name = std::define_static_string(name), .command_name_style = style::custom };
+    }
+
+    static consteval subcommand_name_annot operator()(
+            style s,
+            std::source_location loc = std::source_location::current()) {
+        if (s == style::custom) {
+            throw std::meta::exception(
+                "custom style cannot be specified directly", ^^style::custom, loc);
+        }
+        return { .name = nullptr, .command_name_style = s };
+    }
+};
+
+// If subcommand type is not annotated with this annotation, it behaves like
+// annotated with `[[=subcommand_name(style::kebab)]]` by default, which means
+// the subcommand name is generated from the type name in kebab-case style
+// (e.g., 'FooBar' -> 'foo-bar').
+// Use this annotation to specify a custom subcommand name or change the naming style.
+inline constexpr subcommand_name_annot sub_command = {};
+
+struct mandate_subcommand_annot {};
+
+// Mandate that one of the subcommands must be provided.
+inline constexpr mandate_subcommand_annot mandate_subcommand{};
+
+struct multicall_annot {};
+
+// Makes program behave differently when called via different names (argv[0]).
+// Invocation like `cmd1 ...` is same as `prog cmd1 ...`.
+// Can only be applied to the root command, and it must have subcommands.
+inline constexpr multicall_annot multicall{};
 
 } // namespace clap
 

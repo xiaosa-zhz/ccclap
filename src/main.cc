@@ -2,7 +2,7 @@
 #include <clap/util/ascii.hh>
 #include <clap/util/fmtext.hh>
 #include <clap/parser/token.hh>
-#include <clap/parser/parsergen.hh>
+#include <clap/parser/parser.hh>
 #include <string>
 #include <string_view>
 #include <vector>
