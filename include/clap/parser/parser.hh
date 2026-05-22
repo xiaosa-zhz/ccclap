@@ -82,13 +82,29 @@ public:
     }
 
 private:
+    cstring_view next_token() noexcept {
+        if (cur != end) {
+            ++cur;
+            unparsed_token = (*cur).text;
+        } else {
+            unparsed_token = {};
+        }
+        return unparsed_token;
+    }
+
     template<typename CMD>
     void parse_command(CMD& cmd) {
         nonstatic_data_members_of(^^CMD, std::meta::access_context::current());
     }
 
+    template<std::meta::info Member, typename CMD>
+    void parse_argument(this parser& self, CMD& cmd) {
+
+    }
+
     token_view::iterator cur;
     token_view::iterator end;
+    cstring_view unparsed_token;
 };
 
 // TODO
