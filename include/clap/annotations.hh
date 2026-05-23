@@ -46,7 +46,7 @@ using style = casecvt::style;
 
 struct long_arg_annot {
     const char* long_name = nullptr;
-    style long_name_style = style::kebab;
+    style long_name_style = style::unspecified;
     bool hidden = false;
 
     static consteval long_arg_annot operator()(
@@ -140,7 +140,7 @@ struct named_arg_annot {
     // Short from explicit char, long from member name.
     static consteval named_arg_annot operator()(
             char short_name,
-            style long_style = style::kebab,
+            style long_style = style::unspecified,
             bool is_hidden = false,
             std::source_location loc = std::source_location::current()) {
         return {
@@ -180,7 +180,7 @@ inline constexpr arg_count_annot count{};
 
 struct env_default_annot {
     const char* env_var = nullptr;
-    style env_var_style = style::screaming_snake;
+    style env_var_style = style::unspecified;
 
     static consteval env_default_annot operator()(
             std::string_view env_var_name,
@@ -215,8 +215,10 @@ struct env_default_annot {
 // if no value is provided in the command line.
 // Can be used together with normal default value, and the normal default value
 // will be used if both environment variable and command line value are not provided.
-// By default, the environment variable name is generated from the argument name
-// in SCREAMING_SNAKE_CASE style (e.g., 'fooBar' -> 'FOO_BAR').
+// By default, the environment variable name is generated from the argument name,
+// and naming style is determined by the scope setting (which is SCREAMING_SNAKE_CASE
+// by default for env vars, but can be changed using [[=env_var_style(...)]] at command level).
+// (e.g., 'fooBar' -> 'FOO_BAR').
 // You can also specify a custom environment variable name via `[[=env_default("FOO")]]`,
 // or choose a different naming style via `[[=env_default(style::snake)]]`.
 inline constexpr env_default_annot env{};
@@ -249,7 +251,7 @@ using subcommands = std::variant<std::monostate, CMDs...>;
 
 struct subcommand_name_annot {
     const char* name = nullptr;
-    style command_name_style = style::kebab;
+    style command_name_style = style::unspecified;
 
     static consteval subcommand_name_annot operator()(
             std::string_view name,
@@ -285,8 +287,10 @@ struct subcommand_name_annot {
 };
 
 // If subcommand type is not annotated with this annotation, it behaves like
-// annotated with `[[=subcommand_name(style::kebab)]]` by default, which means
-// the subcommand name is generated from the type name in kebab-case style
+// annotated with `[[=subcommand_name(style::unspecified)]]` by default, which means
+// the subcommand name is generated from the type name, and the naming style
+// is determined by the scope setting (which is kebab-case by default,
+// but can be changed using [[=arg_style(...)]] at command level).
 // (e.g., 'FooBar' -> 'foo-bar').
 // Use this annotation to specify a custom subcommand name or change the naming style.
 inline constexpr subcommand_name_annot sub_command = {};
@@ -302,6 +306,34 @@ struct multicall_annot {};
 // Invocation like `cmd1 ...` is same as `prog cmd1 ...`.
 // Can only be applied to the root command, and it must have subcommands.
 inline constexpr multicall_annot multicall{};
+
+struct argument_naming_style_annot {
+    style naming_style = style::kebab;
+
+    static consteval argument_naming_style_annot operator()(style s) noexcept {
+        return { .naming_style = s };
+    }
+};
+
+// Specify the naming style for arguments generated from member names.
+// By default, it is kebab-case (e.g., 'fooBar' -> '--foo-bar'),
+// but it can be changed to snake_case, camelCase, etc.
+// using this annotation at the command level.
+inline constexpr argument_naming_style_annot arg_style = {};
+
+struct environment_variable_naming_style_annot {
+    style naming_style = style::screaming_snake;
+
+    static consteval environment_variable_naming_style_annot operator()(style s) noexcept {
+        return { .naming_style = s };
+    }
+};
+
+// Specify the naming style for environment variables generated from argument names.
+// By default, it is SCREAMING_SNAKE_CASE (e.g., 'fooBar' -> 'FOO_BAR'),
+// but it can be changed to snake_case, camelCase, etc.
+// using this annotation at the command level.
+inline constexpr environment_variable_naming_style_annot env_var_style = {};
 
 } // namespace clap
 

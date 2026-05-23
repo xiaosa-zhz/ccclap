@@ -14,6 +14,7 @@
 namespace clap::casecvt {
 
 enum class style : std::uint8_t {
+    unspecified,
     verbatim,
 	kebab,
 	snake,
@@ -104,7 +105,10 @@ constexpr auto split_words(std::string_view input) -> word_list {
 
 template<std::ranges::input_range Range>
     requires std::constructible_from<std::string_view, std::ranges::range_value_t<Range>>
-[[nodiscard]] constexpr auto join_words(const Range& words, style style) -> std::string {
+[[nodiscard]] constexpr auto join_words(const Range& words, style style) -> std::string
+    pre (style != style::unspecified)
+    pre (style != style::verbatim)
+{
 	std::string result;
 
 	if (style == style::kebab || style == style::snake
@@ -146,7 +150,12 @@ template<std::ranges::input_range Range>
 }
 
 [[nodiscard]]
-constexpr auto convert(std::string_view input, style style) -> std::string {
+constexpr auto convert(std::string_view input, style style) -> std::string
+    pre (style != style::unspecified)
+{
+    if (style == style::verbatim) {
+        return std::string(input);
+    }
 	return join_words(split_words(input), style);
 }
 
