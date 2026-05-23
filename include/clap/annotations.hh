@@ -321,7 +321,7 @@ inline constexpr annotations::shadow_parent_annot shadow_parent{};
 // but can be changed using [[=arg_style(...)]] at command level).
 // (e.g., 'FooBar' -> 'foo-bar').
 // Use this annotation to specify a custom subcommand name or change the naming style.
-inline constexpr annotations::subcommand_name_annot sub_command = {};
+inline constexpr annotations::subcommand_name_annot subcommand = {};
 
 // Mandate that one of the subcommands must be provided.
 inline constexpr annotations::mandate_subcommand_annot mandate_subcommand{};
