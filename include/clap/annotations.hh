@@ -41,7 +41,7 @@ struct short_arg_annot {
 // or a custom character via `[[=short_arg('x')]]`.
 inline constexpr short_arg_annot short_arg = {};
 
-enum class style : std::uint8_t { custom, kebab, snake };
+enum class style : std::uint8_t { verbatim, kebab, snake, screaming_snake };
 
 struct long_arg_annot {
     const char* long_name = nullptr;
@@ -69,17 +69,20 @@ struct long_arg_annot {
                     name_info, loc);
             }
         }
-        return { .long_name = std::define_static_string(name),
-            .long_name_style = style::custom, .hidden = is_hidden };
+        return {
+            .long_name = extract<const char*>(name_info),
+            .long_name_style = style::verbatim,
+            .hidden = is_hidden
+        };
     }
 
     static consteval long_arg_annot operator()(
             style s,
             bool is_hidden = false,
             std::source_location loc = std::source_location::current()) {
-        if (s == style::custom) {
+        if (s == style::verbatim) {
             throw std::meta::exception(
-                "custom style cannot be specified directly", ^^style::custom, loc);
+                "verbatim style cannot be specified directly", ^^style::verbatim, loc);
         }
         return { .long_name = nullptr, .long_name_style = s, .hidden = is_hidden };
     }
@@ -115,45 +118,34 @@ struct named_arg_annot {
     short_arg_annot short_arg = {};
     long_arg_annot long_arg = {};
 
-    // Generate both short and long arguments.  By default the short name is
-    // the first character of the member name and the long name is the provided
-    // string as-is.  Bracket notation "[X]" picks a custom short name:
-    //   `[[=arg("foo[B]ar")]]` → '-B' and '--fooBar'
+    // Generate both short and long arguments. If short name is not specified,
+    // it is generated from the first character of the long name.
     static consteval named_arg_annot operator()(
             std::string_view name,
+            char c = '\0',
             bool is_hidden = false,
             std::source_location loc = std::source_location::current()) {
         named_arg_annot result;
         auto& [sa, la] = result;
-        const auto bo = name.find('[');
-        if (bo != std::string_view::npos) {
-            const auto bc = name.find(']');
-            if (bc == std::string_view::npos || bc != bo + 2) {
-                throw std::meta::exception(fmtext::format("invalid bracket notation in '{}'", name),
-                    std::meta::reflect_constant_string(name), loc);
-            }
-            sa = clap::short_arg(name[bo + 1], is_hidden, loc);
-            std::string ln(name.substr(0, bo));
-            ln += name.substr(bc + 1);
-            la = clap::long_arg(ln, is_hidden, loc);
-        } else {
-            sa = clap::short_arg(name[0], is_hidden, loc);
-            la = clap::long_arg(name, is_hidden, loc);
+        auto long_name_info = std::meta::reflect_constant_string(name);
+        la = clap::long_arg(name, is_hidden, loc);
+        if (c == '\0') {
+            c = name[0];
         }
+        sa = clap::short_arg(c, is_hidden, loc);
         return result;
     }
 
-    // Short from explicit char, long style from the second parameter.
+    // Short from explicit char, long from member name.
     static consteval named_arg_annot operator()(
             char short_name,
             style long_style = style::kebab,
             bool is_hidden = false,
             std::source_location loc = std::source_location::current()) {
-        named_arg_annot result;
-        auto& [sa, la] = result;
-        sa = clap::short_arg(short_name, is_hidden, loc);
-        la = clap::long_arg(long_style, is_hidden, loc);
-        return result;
+        return {
+            .short_arg = clap::short_arg(short_name, is_hidden, loc),
+            .long_arg = clap::long_arg(long_style, is_hidden, loc)
+        };
     }
 };
 
@@ -161,6 +153,72 @@ struct named_arg_annot {
 // If more complex configuration is needed, short_arg and long_arg can be
 // specified separately.
 inline constexpr named_arg_annot arg = {};
+
+struct arg_count_annot {
+    std::size_t min = 0;
+    std::size_t max = std::numeric_limits<std::size_t>::max();
+
+    static consteval arg_count_annot operator()(std::size_t num) noexcept {
+        return { .min = num, .max = num };
+    }
+
+    static consteval arg_count_annot operator()(
+            std::size_t min, std::size_t max,
+            std::source_location loc = std::source_location::current()) {
+        if (min > max) {
+            throw std::meta::exception(
+                fmtext::format("min cannot be greater than max ({} > {})", min, max),
+                ^^arg_count_annot, loc);
+        }
+        return { .min = min, .max = max };
+    }
+};
+
+// Specify the number of values an argument can take.
+inline constexpr arg_count_annot count{};
+
+struct env_default_annot {
+    const char* env_var = nullptr;
+    style env_var_style = style::screaming_snake;
+
+    static consteval env_default_annot operator()(
+            std::string_view env_var_name,
+            std::source_location loc = std::source_location::current()) {
+        auto env_var_info = std::meta::reflect_constant_string(env_var_name);
+        if (env_var_name.empty()) {
+            throw std::meta::exception("environment variable name cannot be empty",
+                env_var_info, loc);
+        }
+        for (char c : env_var_name) {
+            if (!(clap::ascii::is_alphanumeric(c) || c == '_')) {
+                throw std::meta::exception(
+                    "environment variable name can only contains alphanumeric characters and underscores",
+                    env_var_info, loc);
+            }
+        }
+        return { .env_var = extract<const char*>(env_var_info), .env_var_style = style::verbatim };
+    }
+
+    static consteval env_default_annot operator()(
+            style s,
+            std::source_location loc = std::source_location::current()) {
+        if (s == style::verbatim) {
+            throw std::meta::exception(
+                "verbatim style cannot be specified directly", ^^style::verbatim, loc);
+        }
+        return { .env_var = nullptr, .env_var_style = s };
+    }
+};
+
+// Specify that the default value of an argument comes from an environment variable
+// if no value is provided in the command line.
+// Can be used together with normal default value, and the normal default value
+// will be used if both environment variable and command line value are not provided.
+// By default, the environment variable name is generated from the argument name
+// in SCREAMING_SNAKE_CASE style (e.g., 'fooBar' -> 'FOO_BAR').
+// You can also specify a custom environment variable name via `[[=env_default("FOO")]]`,
+// or choose a different naming style via `[[=env_default(style::snake)]]`.
+inline constexpr env_default_annot env{};
 
 struct help_annot {
     static constexpr char default_help[] = "No help text available yet.";
@@ -211,15 +269,15 @@ struct subcommand_name_annot {
                     name_info, loc);
             }
         }
-        return { .name = std::define_static_string(name), .command_name_style = style::custom };
+        return { .name = std::define_static_string(name), .command_name_style = style::verbatim };
     }
 
     static consteval subcommand_name_annot operator()(
             style s,
             std::source_location loc = std::source_location::current()) {
-        if (s == style::custom) {
+        if (s == style::verbatim) {
             throw std::meta::exception(
-                "custom style cannot be specified directly", ^^style::custom, loc);
+                "verbatim style cannot be specified directly", ^^style::verbatim, loc);
         }
         return { .name = nullptr, .command_name_style = s };
     }
