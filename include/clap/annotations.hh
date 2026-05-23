@@ -15,6 +15,10 @@
 
 namespace clap {
 
+using style = casecvt::style;
+
+namespace annotations {
+
 struct short_arg_annot {
     char short_name = '\0';
     bool hidden = false;
@@ -23,7 +27,7 @@ struct short_arg_annot {
             char name,
             bool is_hidden = false,
             std::source_location loc = std::source_location::current()) {
-        if (!clap::ascii::is_alphanumeric(name)) {
+        if (!ascii::is_alphanumeric(name)) {
             throw std::meta::exception(
                 fmtext::format("short argument name must be alphanumeric, got '{}'(0x{:x})",
                     name, static_cast<std::size_t>(name)),
@@ -36,13 +40,6 @@ struct short_arg_annot {
         return short_name == '\0';
     }
 };
-
-// Generate short argument ('-x')
-// Use the first character of the member name by default,
-// or a custom character via `[[=short_arg('x')]]`.
-inline constexpr short_arg_annot short_arg = {};
-
-using style = casecvt::style;
 
 struct long_arg_annot {
     const char* long_name = nullptr;
@@ -64,7 +61,7 @@ struct long_arg_annot {
                 name_info, loc);
         }
         for (char c : name) {
-            if (!(clap::ascii::is_alphanumeric(c) || c == '-' || c == '_')) {
+            if (!(ascii::is_alphanumeric(c) || c == '-' || c == '_')) {
                 throw std::meta::exception(
                     "long argument name can only contains alphanumeric, hyphens, and/or underscores",
                     name_info, loc);
@@ -93,14 +90,6 @@ struct long_arg_annot {
     }
 };
 
-// Generate long argument ('--foo-bar' or '--foo_bar').
-// By default, the long name is generated from the member name
-// in kebab-case style (e.g., 'fooBar' -> '--foo-bar').
-// You can also specify a custom long name via `[[=long_arg("foo")]]`,
-// or choose snake_case style via `[[=long_arg(style::snake)]]`.
-// Explicitly specified name will not be modified.
-inline constexpr long_arg_annot long_arg = {};
-
 struct positional_annot {
     std::size_t pos = std::numeric_limits<std::size_t>::max();
 
@@ -113,14 +102,10 @@ struct positional_annot {
     }
 };
 
-inline constexpr positional_annot positional = {};
-
 struct named_arg_annot {
     short_arg_annot short_arg = {};
     long_arg_annot long_arg = {};
 
-    // Generate both short and long arguments. If short name is not specified,
-    // it is generated from the first character of the long name.
     static consteval named_arg_annot operator()(
             std::string_view name,
             char c = '\0',
@@ -128,32 +113,25 @@ struct named_arg_annot {
             std::source_location loc = std::source_location::current()) {
         named_arg_annot result;
         auto& [sa, la] = result;
-        auto long_name_info = std::meta::reflect_constant_string(name);
-        la = clap::long_arg(name, is_hidden, loc);
+        la = long_arg_annot{}(name, is_hidden, loc);
         if (c == '\0') {
             c = name[0];
         }
-        sa = clap::short_arg(c, is_hidden, loc);
+        sa = short_arg_annot{}(c, is_hidden, loc);
         return result;
     }
 
-    // Short from explicit char, long from member name.
     static consteval named_arg_annot operator()(
             char short_name,
             style long_style = style::unspecified,
             bool is_hidden = false,
             std::source_location loc = std::source_location::current()) {
         return {
-            .short_arg = clap::short_arg(short_name, is_hidden, loc),
-            .long_arg = clap::long_arg(long_style, is_hidden, loc)
+            .short_arg = short_arg_annot{}(short_name, is_hidden, loc),
+            .long_arg = long_arg_annot{}(long_style, is_hidden, loc)
         };
     }
 };
-
-// Generate both short and long named arguments.
-// If more complex configuration is needed, short_arg and long_arg can be
-// specified separately.
-inline constexpr named_arg_annot arg = {};
 
 struct arg_count_annot {
     std::size_t min = 0;
@@ -175,9 +153,6 @@ struct arg_count_annot {
     }
 };
 
-// Specify the number of values an argument can take.
-inline constexpr arg_count_annot count{};
-
 struct env_default_annot {
     const char* env_var = nullptr;
     style env_var_style = style::unspecified;
@@ -191,7 +166,7 @@ struct env_default_annot {
                 env_var_info, loc);
         }
         for (char c : env_var_name) {
-            if (!(clap::ascii::is_alphanumeric(c) || c == '_')) {
+            if (!(ascii::is_alphanumeric(c) || c == '_')) {
                 throw std::meta::exception(
                     "environment variable name can only contains alphanumeric characters and underscores",
                     env_var_info, loc);
@@ -211,18 +186,6 @@ struct env_default_annot {
     }
 };
 
-// Specify that the default value of an argument comes from an environment variable
-// if no value is provided in the command line.
-// Can be used together with normal default value, and the normal default value
-// will be used if both environment variable and command line value are not provided.
-// By default, the environment variable name is generated from the argument name,
-// and naming style is determined by the scope setting (which is SCREAMING_SNAKE_CASE
-// by default for env vars, but can be changed using [[=env_var_style(...)]] at command level).
-// (e.g., 'fooBar' -> 'FOO_BAR').
-// You can also specify a custom environment variable name via `[[=env_default("FOO")]]`,
-// or choose a different naming style via `[[=env_default(style::snake)]]`.
-inline constexpr env_default_annot env{};
-
 struct help_annot {
     static constexpr char default_help[] = "No help text available yet.";
     const char* help_text = default_help;
@@ -237,25 +200,9 @@ struct help_annot {
     }
 };
 
-// Generate help text for an argument.
-// Example: `[[=help("Name of the person to greet")]]`.
-inline constexpr help_annot help{};
-
 struct propagated_annot {};
 
-// Mark an argument to be propagated to subcommands, so that it can still be
-// parsed and used when parsing subcommands. If subcommand has an argument
-// with the same name, an error will be emitted unless the subcommand argument
-// is annotated with `[[=shadow_parent]]` to explicitly allow shadowing.
-inline constexpr propagated_annot propagated{};
-
 struct shadow_parent_annot {};
-
-// Mark a argument can shadow argument with the same name in parent command.
-inline constexpr shadow_parent_annot shadow_parent{};
-
-template<typename... CMDs>
-using subcommands = std::variant<std::monostate, CMDs...>;
 
 struct subcommand_name_annot {
     const char* name = nullptr;
@@ -274,7 +221,7 @@ struct subcommand_name_annot {
                 name_info, loc);
         }
         for (char c : name) {
-            if (!(clap::ascii::is_alphanumeric(c) || c == '-' || c == '_')) {
+            if (!(ascii::is_alphanumeric(c) || c == '-' || c == '_')) {
                 throw std::meta::exception(
                     "subcommand name can only contains alphanumeric, hyphens, and/or underscores",
                     name_info, loc);
@@ -294,26 +241,9 @@ struct subcommand_name_annot {
     }
 };
 
-// If subcommand type is not annotated with this annotation, it behaves like
-// annotated with `[[=subcommand_name(style::unspecified)]]` by default, which means
-// the subcommand name is generated from the type name, and the naming style
-// is determined by the scope setting (which is kebab-case by default,
-// but can be changed using [[=arg_style(...)]] at command level).
-// (e.g., 'FooBar' -> 'foo-bar').
-// Use this annotation to specify a custom subcommand name or change the naming style.
-inline constexpr subcommand_name_annot sub_command = {};
-
 struct mandate_subcommand_annot {};
 
-// Mandate that one of the subcommands must be provided.
-inline constexpr mandate_subcommand_annot mandate_subcommand{};
-
 struct multicall_annot {};
-
-// Makes program behave differently when called via different names (argv[0]).
-// Invocation like `cmd1 ...` is same as `prog cmd1 ...`.
-// Can only be applied to the root command, and it must have subcommands.
-inline constexpr multicall_annot multicall{};
 
 struct arg_naming_style_annot {
     style naming_style = style::kebab;
@@ -323,12 +253,6 @@ struct arg_naming_style_annot {
     }
 };
 
-// Specify the naming style for arguments generated from member names.
-// By default, it is kebab-case (e.g., 'fooBar' -> '--foo-bar'),
-// but it can be changed to snake_case, camelCase, etc.
-// using this annotation at the command level.
-inline constexpr arg_naming_style_annot arg_style = {};
-
 struct env_var_naming_style_annot {
     style naming_style = style::screaming_snake;
 
@@ -337,11 +261,87 @@ struct env_var_naming_style_annot {
     }
 };
 
+} // namespace annotations
+
+template<typename... CMDs>
+using subcommands = std::variant<std::monostate, CMDs...>;
+
+// Generate short argument ('-x')
+// Use the first character of the member name by default,
+// or a custom character via `[[=short_arg('x')]]`.
+inline constexpr annotations::short_arg_annot short_arg = {};
+
+// Generate long argument ('--foo-bar' or '--foo_bar').
+// By default, the long name is generated from the member name
+// in kebab-case style (e.g., 'fooBar' -> '--foo-bar').
+// You can also specify a custom long name via `[[=long_arg("foo")]]`,
+// or choose snake_case style via `[[=long_arg(style::snake)]]`.
+// Explicitly specified name will not be modified.
+inline constexpr annotations::long_arg_annot long_arg = {};
+
+inline constexpr annotations::positional_annot positional = {};
+
+// Generate both short and long named arguments.
+// If more complex configuration is needed, short_arg and long_arg can be
+// specified separately.
+inline constexpr annotations::named_arg_annot arg = {};
+
+// Specify the number of values an argument can take.
+inline constexpr annotations::arg_count_annot count{};
+
+// Specify that the default value of an argument comes from an environment variable
+// if no value is provided in the command line.
+// Can be used together with normal default value, and the normal default value
+// will be used if both environment variable and command line value are not provided.
+// By default, the environment variable name is generated from the argument name,
+// and naming style is determined by the scope setting (which is SCREAMING_SNAKE_CASE
+// by default for env vars, but can be changed using [[=env_var_style(...)]] at command level).
+// (e.g., 'fooBar' -> 'FOO_BAR').
+// You can also specify a custom environment variable name via `[[=env_default("FOO")]]`,
+// or choose a different naming style via `[[=env_default(style::snake)]]`.
+inline constexpr annotations::env_default_annot env{};
+
+// Generate help text for an argument.
+// Example: `[[=help("Name of the person to greet")]]`.
+inline constexpr annotations::help_annot help{};
+
+// Mark an argument to be propagated to subcommands, so that it can still be
+// parsed and used when parsing subcommands. If subcommand has an argument
+// with the same name, an error will be emitted unless the subcommand argument
+// is annotated with `[[=shadow_parent]]` to explicitly allow shadowing.
+inline constexpr annotations::propagated_annot propagated{};
+
+// Mark a argument can shadow argument with the same name in parent command.
+inline constexpr annotations::shadow_parent_annot shadow_parent{};
+
+// If subcommand type is not annotated with this annotation, it behaves like
+// annotated with `[[=subcommand_name(style::unspecified)]]` by default, which means
+// the subcommand name is generated from the type name, and the naming style
+// is determined by the scope setting (which is kebab-case by default,
+// but can be changed using [[=arg_style(...)]] at command level).
+// (e.g., 'FooBar' -> 'foo-bar').
+// Use this annotation to specify a custom subcommand name or change the naming style.
+inline constexpr annotations::subcommand_name_annot sub_command = {};
+
+// Mandate that one of the subcommands must be provided.
+inline constexpr annotations::mandate_subcommand_annot mandate_subcommand{};
+
+// Makes program behave differently when called via different names (argv[0]).
+// Invocation like `cmd1 ...` is same as `prog cmd1 ...`.
+// Can only be applied to the root command, and it must have subcommands.
+inline constexpr annotations::multicall_annot multicall{};
+
+// Specify the naming style for arguments generated from member names.
+// By default, it is kebab-case (e.g., 'fooBar' -> '--foo-bar'),
+// but it can be changed to snake_case, camelCase, etc.
+// using this annotation at the command level.
+inline constexpr annotations::arg_naming_style_annot arg_style = {};
+
 // Specify the naming style for environment variables generated from argument names.
 // By default, it is SCREAMING_SNAKE_CASE (e.g., 'fooBar' -> 'FOO_BAR'),
 // but it can be changed to snake_case, camelCase, etc.
 // using this annotation at the command level.
-inline constexpr env_var_naming_style_annot env_var_style = {};
+inline constexpr annotations::env_var_naming_style_annot env_var_style = {};
 
 } // namespace clap
 

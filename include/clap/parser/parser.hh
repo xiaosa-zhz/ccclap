@@ -68,8 +68,9 @@ public:
     {}
 
     template<typename CMD>
-    void parse_root_command(CMD& cmd) {
-        constexpr static bool enable_multicall = !annotations_of_with_type(^^CMD, ^^multicall_annot).empty();
+    void parse(CMD& cmd) {
+        constexpr static bool enable_multicall = !annotations_of_with_type(^^CMD,
+            ^^annotations::multicall_annot).empty();
         if constexpr (enable_multicall) {
             [] consteval {
                 auto subcommands = details::find_subcommands(^^CMD);
@@ -92,14 +93,14 @@ private:
         return unparsed_token;
     }
 
+    template<std::meta::info Arg, typename CMD>
+    void parse_argument(this parser& self, CMD& cmd) {
+        
+    }
+
     template<typename CMD>
     void parse_command(CMD& cmd) {
         nonstatic_data_members_of(^^CMD, std::meta::access_context::current());
-    }
-
-    template<std::meta::info Member, typename CMD>
-    void parse_argument(this parser& self, CMD& cmd) {
-
     }
 
     token_view::iterator cur;
