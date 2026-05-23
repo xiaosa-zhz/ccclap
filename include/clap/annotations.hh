@@ -11,6 +11,7 @@
 
 #include <clap/util/ascii.hh>
 #include <clap/util/fmtext.hh>
+#include <clap/util/casecvt.hh>
 
 namespace clap {
 
@@ -41,7 +42,7 @@ struct short_arg_annot {
 // or a custom character via `[[=short_arg('x')]]`.
 inline constexpr short_arg_annot short_arg = {};
 
-enum class style : std::uint8_t { verbatim, kebab, snake, screaming_snake };
+using style = casecvt::style;
 
 struct long_arg_annot {
     const char* long_name = nullptr;

@@ -1,3 +1,4 @@
+#include "clap/util/casecvt.hh"
 #include <clap/util/cstring.hh>
 #include <clap/util/ascii.hh>
 #include <clap/util/fmtext.hh>
@@ -52,6 +53,24 @@ void parse(int argc, char** argv) {
         | std::ranges::to<std::vector>();
     fmtext::println("{}", args);
 }
+
+constexpr const char* camelCase = "fooBar";
+
+constexpr const char* PascalCase = [] consteval {
+    return std::define_static_string(clap::casecvt::to_pascal(camelCase));
+}();
+
+constexpr const char* snake_case = [] consteval {
+    return std::define_static_string(clap::casecvt::to_snake(camelCase));
+}();
+
+constexpr const char* SCREAMING_SNAKE_CASE = [] consteval {
+    return std::define_static_string(clap::casecvt::to_screaming_snake(camelCase));
+}();
+
+constexpr const char* kebab_case = [] consteval {
+    return std::define_static_string(clap::casecvt::to_kebab(camelCase));
+}();
 
 int main(int argc, char** argv) {
     parse(argc, argv);
