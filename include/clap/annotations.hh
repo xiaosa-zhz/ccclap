@@ -241,6 +241,14 @@ struct help_annot {
 // Example: `[[=help("Name of the person to greet")]]`.
 inline constexpr help_annot help{};
 
+struct propagated_annot {};
+
+// Mark an argument to be propagated to subcommands, so that it can still be
+// parsed and used when parsing subcommands. If subcommand has an argument
+// with the same name, an error will be emitted unless the subcommand argument
+// is annotated with `[[=shadow_parent]]` to explicitly allow shadowing.
+inline constexpr propagated_annot propagated{};
+
 struct shadow_parent_annot {};
 
 // Mark a argument can shadow argument with the same name in parent command.
@@ -307,10 +315,10 @@ struct multicall_annot {};
 // Can only be applied to the root command, and it must have subcommands.
 inline constexpr multicall_annot multicall{};
 
-struct argument_naming_style_annot {
+struct arg_naming_style_annot {
     style naming_style = style::kebab;
 
-    static consteval argument_naming_style_annot operator()(style s) noexcept {
+    static consteval arg_naming_style_annot operator()(style s) noexcept {
         return { .naming_style = s };
     }
 };
@@ -319,12 +327,12 @@ struct argument_naming_style_annot {
 // By default, it is kebab-case (e.g., 'fooBar' -> '--foo-bar'),
 // but it can be changed to snake_case, camelCase, etc.
 // using this annotation at the command level.
-inline constexpr argument_naming_style_annot arg_style = {};
+inline constexpr arg_naming_style_annot arg_style = {};
 
-struct environment_variable_naming_style_annot {
+struct env_var_naming_style_annot {
     style naming_style = style::screaming_snake;
 
-    static consteval environment_variable_naming_style_annot operator()(style s) noexcept {
+    static consteval env_var_naming_style_annot operator()(style s) noexcept {
         return { .naming_style = s };
     }
 };
@@ -333,7 +341,7 @@ struct environment_variable_naming_style_annot {
 // By default, it is SCREAMING_SNAKE_CASE (e.g., 'fooBar' -> 'FOO_BAR'),
 // but it can be changed to snake_case, camelCase, etc.
 // using this annotation at the command level.
-inline constexpr environment_variable_naming_style_annot env_var_style = {};
+inline constexpr env_var_naming_style_annot env_var_style = {};
 
 } // namespace clap
 
