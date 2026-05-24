@@ -89,25 +89,25 @@ inline constexpr null_term_fn null_term = {};
 struct null_terminated_string_comparator {
     using is_transparent = void;
 
-    [[nodiscard]] constexpr bool operator()(const char* lhs, const char* rhs) const noexcept {
+    [[nodiscard]] static constexpr bool operator()(const char* lhs, const char* rhs) noexcept {
         return std::ranges::lexicographical_compare(
             null_term(lhs), null_term(rhs));
     }
 
     template<std::convertible_to<std::string_view> V>
-    [[nodiscard]] constexpr bool operator()(const char* lhs, V&& view) const noexcept {
+    [[nodiscard]] static constexpr bool operator()(const char* lhs, V&& view) noexcept {
         return std::ranges::lexicographical_compare(
             null_term(lhs), std::string_view(std::forward<V>(view)));
     }
 
     template<std::convertible_to<std::string_view> V>
-    [[nodiscard]] constexpr bool operator()(V&& view, const char* rhs) const noexcept {
+    [[nodiscard]] static constexpr bool operator()(V&& view, const char* rhs) noexcept {
         return std::ranges::lexicographical_compare(
             std::string_view(std::forward<V>(view)), null_term(rhs));
     }
 
     template<std::convertible_to<std::string_view> V1, std::convertible_to<std::string_view> V2>
-    [[nodiscard]] constexpr bool operator()(V1&& v1, V2&& v2) const noexcept {
+    [[nodiscard]] static constexpr bool operator()(V1&& v1, V2&& v2) noexcept {
         return std::string_view(std::forward<V1>(v1)) < std::string_view(std::forward<V2>(v2));
     }
 };
