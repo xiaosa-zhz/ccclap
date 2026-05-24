@@ -72,8 +72,24 @@ constexpr const char* kebab_case = [] consteval {
     return std::define_static_string(clap::casecvt::to_kebab(camelCase));
 }();
 
+constexpr void lut_test() {
+    constexpr static auto lut = [] consteval {
+        using action_type = void(*)();
+        constexpr static clap::details::raw_lookup_table<action_type> raw_table[] = {
+            {clap::details::from_string_view("foo"), +[](){ fmtext::println("foo"); }},
+            {clap::details::from_string_view("bar"), +[](){ fmtext::println("bar"); }},
+            {clap::details::from_string_view("baz"), +[](){ fmtext::println("baz"); }},
+        };
+        return clap::details::make_lookup_table<action_type, raw_table, std::size(raw_table)>();
+    }();
+    lut.at("foo")();
+    lut.at("bar")();
+    lut.at("baz")();
+}
+
 int main(int argc, char** argv) {
     parse(argc, argv);
+    lut_test();
     fmtext::println(test_format_to);
     fmtext::println("Hello, world from fmt + C++26!");
 

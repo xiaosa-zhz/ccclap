@@ -4,6 +4,10 @@
 
 #include <meta>
 #include <initializer_list>
+#include <string_view>
+#include <utility>
+#include <inplace_vector>
+#include <flat_map>
 
 #include <clap/parser/token.hh>
 #include <clap/annotations.hh>
@@ -54,6 +58,65 @@ consteval std::meta::info find_subcommands(std::meta::info type) {
     return {};
 }
 
+// FIXME: GCC does not have trivial union yet, making std::inplace_vector
+// not capable for non-trivial types during constant evaluation.
+
+template<typename CharT, typename CharTraits = std::char_traits<CharT>>
+struct basic_trivial_string_view {
+    const CharT* data;
+    std::size_t size;
+
+    constexpr std::basic_string_view<CharT, CharTraits> to_string_view() const noexcept {
+        return std::basic_string_view<CharT, CharTraits>(data, size);
+    }
+
+    constexpr operator std::basic_string_view<CharT, CharTraits>() const noexcept {
+        return to_string_view();
+    }
+
+    friend constexpr auto operator<=>(
+            const basic_trivial_string_view& lhs,
+            const basic_trivial_string_view& rhs) noexcept {
+        return lhs.to_string_view() <=> rhs.to_string_view();
+    }
+
+    friend constexpr auto operator<=>(
+            const basic_trivial_string_view& lhs,
+            std::basic_string_view<CharT, CharTraits> rhs) noexcept {
+        return lhs.to_string_view() <=> rhs;
+    }
+
+    friend constexpr bool operator==(
+            const basic_trivial_string_view& lhs,
+            const basic_trivial_string_view& rhs) noexcept {
+        return lhs.to_string_view() == rhs.to_string_view();
+    }
+
+    friend constexpr bool operator==(
+            const basic_trivial_string_view& lhs,
+            std::basic_string_view<CharT, CharTraits> rhs) noexcept {
+        return lhs.to_string_view() == rhs;
+    }
+};
+
+using trivial_string_view = basic_trivial_string_view<char>;
+
+constexpr trivial_string_view from_string_view(std::string_view sv) noexcept {
+    return { sv.data(), sv.size() };
+}
+
+template<typename Action, std::size_t N>
+using lookup_table = std::flat_map<trivial_string_view, Action, std::less<>,
+    std::inplace_vector<trivial_string_view, N>, std::inplace_vector<Action, N>>;
+
+template<typename Action>
+using raw_lookup_table = std::pair<trivial_string_view, Action>;
+
+template<typename Action, const raw_lookup_table<Action>* Table, std::size_t N>
+constexpr lookup_table<Action, N> make_lookup_table() noexcept {
+    return lookup_table<Action, N>(std::from_range, std::span(Table, N));
+}
+
 } // namespace clap::details
 
 class parser
@@ -83,7 +146,7 @@ public:
     }
 
 private:
-    cstring_view next_token() noexcept {
+    cstring_view to_next_token() noexcept {
         if (cur != end) {
             ++cur;
             unparsed_token = (*cur).text;
