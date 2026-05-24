@@ -2,12 +2,14 @@
 #ifndef CCCLAP_PARSER_PARSER_GENERATOR_HH
 #define CCCLAP_PARSER_PARSER_GENERATOR_HH 1
 
+#include <concepts>
 #include <meta>
 #include <initializer_list>
 #include <string_view>
 #include <utility>
 #include <inplace_vector>
 #include <flat_map>
+#include <algorithm>
 
 #include <clap/parser/token.hh>
 #include <clap/annotations.hh>
@@ -60,57 +62,62 @@ consteval std::meta::info find_subcommands(std::meta::info type) {
 
 // FIXME: GCC does not have trivial union yet, making std::inplace_vector
 // not capable for non-trivial types during constant evaluation.
+// Consider using std::string_view when it is fixed.
 
-template<typename CharT, typename CharTraits = std::char_traits<CharT>>
-struct basic_trivial_string_view {
-    const CharT* data;
-    std::size_t size;
-
-    constexpr std::basic_string_view<CharT, CharTraits> to_string_view() const noexcept {
-        return std::basic_string_view<CharT, CharTraits>(data, size);
-    }
-
-    constexpr operator std::basic_string_view<CharT, CharTraits>() const noexcept {
-        return to_string_view();
-    }
-
-    friend constexpr auto operator<=>(
-            const basic_trivial_string_view& lhs,
-            const basic_trivial_string_view& rhs) noexcept {
-        return lhs.to_string_view() <=> rhs.to_string_view();
-    }
-
-    friend constexpr auto operator<=>(
-            const basic_trivial_string_view& lhs,
-            std::basic_string_view<CharT, CharTraits> rhs) noexcept {
-        return lhs.to_string_view() <=> rhs;
-    }
-
-    friend constexpr bool operator==(
-            const basic_trivial_string_view& lhs,
-            const basic_trivial_string_view& rhs) noexcept {
-        return lhs.to_string_view() == rhs.to_string_view();
-    }
-
-    friend constexpr bool operator==(
-            const basic_trivial_string_view& lhs,
-            std::basic_string_view<CharT, CharTraits> rhs) noexcept {
-        return lhs.to_string_view() == rhs;
+struct null_sentinel_t {
+    template<std::input_iterator I>
+        requires std::default_initializable<std::iter_value_t<I>>
+        && std::equality_comparable_with<std::iter_reference_t<I>, std::iter_value_t<I>>
+    friend constexpr bool operator==(const I& it, null_sentinel_t) {
+        return *it == std::iter_value_t<I>();
     }
 };
 
-using trivial_string_view = basic_trivial_string_view<char>;
+inline constexpr null_sentinel_t null_sentinel;
 
-consteval trivial_string_view from_string_view(std::string_view sv) noexcept {
-    return { std::define_static_string(sv), sv.size() };
-}
+struct null_term_fn {
+    template<std::input_iterator I>
+        requires std::default_initializable<std::iter_value_t<I>>
+        && std::equality_comparable_with<std::iter_reference_t<I>, std::iter_value_t<I>>
+    [[nodiscard]] constexpr auto operator()(I it) const {
+        return std::ranges::subrange(std::move(it), null_sentinel);
+    }
+};
+
+inline constexpr null_term_fn null_term = {};
+
+struct null_terminated_string_comparator {
+    using is_transparent = void;
+
+    [[nodiscard]] constexpr bool operator()(const char* lhs, const char* rhs) const noexcept {
+        return std::ranges::lexicographical_compare(
+            null_term(lhs), null_term(rhs));
+    }
+
+    template<std::convertible_to<std::string_view> V>
+    [[nodiscard]] constexpr bool operator()(const char* lhs, V&& view) const noexcept {
+        return std::ranges::lexicographical_compare(
+            null_term(lhs), std::string_view(std::forward<V>(view)));
+    }
+
+    template<std::convertible_to<std::string_view> V>
+    [[nodiscard]] constexpr bool operator()(V&& view, const char* rhs) const noexcept {
+        return std::ranges::lexicographical_compare(
+            std::string_view(std::forward<V>(view)), null_term(rhs));
+    }
+
+    template<std::convertible_to<std::string_view> V1, std::convertible_to<std::string_view> V2>
+    [[nodiscard]] constexpr bool operator()(V1&& v1, V2&& v2) const noexcept {
+        return std::string_view(std::forward<V1>(v1)) < std::string_view(std::forward<V2>(v2));
+    }
+};
 
 template<typename Action, std::size_t N>
-using lookup_table = std::flat_map<trivial_string_view, Action, std::less<>,
-    std::inplace_vector<trivial_string_view, N>, std::inplace_vector<Action, N>>;
+using lookup_table = std::flat_map<const char*, Action, null_terminated_string_comparator,
+    std::inplace_vector<const char*, N>, std::inplace_vector<Action, N>>;
 
 template<typename Action>
-using raw_lookup_table = std::pair<trivial_string_view, Action>;
+using raw_lookup_table = std::pair<const char*, Action>;
 
 template<typename Action, const raw_lookup_table<Action>* Table, std::size_t N>
 constexpr lookup_table<Action, N> make_lookup_table() noexcept {

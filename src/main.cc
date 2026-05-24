@@ -76,9 +76,9 @@ constexpr void lut_test() {
     using action_type = void(*)();
     constexpr static auto raw = [] consteval {
         std::vector<clap::details::raw_lookup_table<action_type>> r = {
-            {clap::details::from_string_view("foo"), +[] { fmtext::println("foo"); }},
-            {clap::details::from_string_view("bar"), +[] { fmtext::println("bar"); }},
-            {clap::details::from_string_view("baz"), +[] { fmtext::println("baz"); }},
+            {std::define_static_string("foo"), +[] { fmtext::println("foo"); }},
+            {std::define_static_string("bar"), +[] { fmtext::println("bar"); }},
+            {std::define_static_string("baz"), +[] { fmtext::println("baz"); }},
         };
         return std::define_static_array(r);
     }();
