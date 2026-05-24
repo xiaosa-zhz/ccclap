@@ -75,7 +75,7 @@ constexpr const char* kebab_case = [] consteval {
 constexpr void lut_test() {
     using action_type = void(*)();
     constexpr static auto raw = [] consteval {
-        std::vector<clap::details::raw_lookup_table<action_type>> r = {
+        std::vector<clap::details::lookup_table_entry<action_type>> r = {
             {std::define_static_string("foo"), +[] { fmtext::println("foo"); }},
             {std::define_static_string("bar"), +[] { fmtext::println("bar"); }},
             {std::define_static_string("baz"), +[] { fmtext::println("baz"); }},

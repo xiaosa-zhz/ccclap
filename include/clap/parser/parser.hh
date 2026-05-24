@@ -86,7 +86,7 @@ struct null_term_fn {
 
 inline constexpr null_term_fn null_term = {};
 
-struct null_terminated_string_comparator {
+struct NTCS_comparator {
     using is_transparent = void;
 
     [[nodiscard]] static constexpr bool operator()(const char* lhs, const char* rhs) noexcept {
@@ -113,13 +113,13 @@ struct null_terminated_string_comparator {
 };
 
 template<typename Action, std::size_t N>
-using lookup_table = std::flat_map<const char*, Action, null_terminated_string_comparator,
+using lookup_table = std::flat_map<const char*, Action, NTCS_comparator,
     std::inplace_vector<const char*, N>, std::inplace_vector<Action, N>>;
 
 template<typename Action>
-using raw_lookup_table = std::pair<const char*, Action>;
+using lookup_table_entry = lookup_table<Action, 0>::value_type;
 
-template<typename Action, const raw_lookup_table<Action>* Table, std::size_t N>
+template<typename Action, const lookup_table_entry<Action>* Table, std::size_t N>
 constexpr lookup_table<Action, N> make_lookup_table() noexcept {
     return lookup_table<Action, N>(std::from_range, std::span(Table, N));
 }
