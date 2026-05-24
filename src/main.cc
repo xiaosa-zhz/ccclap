@@ -73,15 +73,16 @@ constexpr const char* kebab_case = [] consteval {
 }();
 
 constexpr void lut_test() {
-    constexpr static auto lut = [] consteval {
-        using action_type = void(*)();
-        constexpr static clap::details::raw_lookup_table<action_type> raw_table[] = {
-            {clap::details::from_string_view("foo"), +[](){ fmtext::println("foo"); }},
-            {clap::details::from_string_view("bar"), +[](){ fmtext::println("bar"); }},
-            {clap::details::from_string_view("baz"), +[](){ fmtext::println("baz"); }},
+    using action_type = void(*)();
+    constexpr static auto raw = [] consteval {
+        std::vector<clap::details::raw_lookup_table<action_type>> r = {
+            {clap::details::from_string_view("foo"), +[] { fmtext::println("foo"); }},
+            {clap::details::from_string_view("bar"), +[] { fmtext::println("bar"); }},
+            {clap::details::from_string_view("baz"), +[] { fmtext::println("baz"); }},
         };
-        return clap::details::make_lookup_table<action_type, raw_table, std::size(raw_table)>();
+        return std::define_static_array(r);
     }();
+    constexpr static auto lut = clap::details::make_lookup_table<action_type, raw.data(), raw.size()>();
     lut.at("foo")();
     lut.at("bar")();
     lut.at("baz")();

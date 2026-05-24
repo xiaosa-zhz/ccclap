@@ -101,8 +101,8 @@ struct basic_trivial_string_view {
 
 using trivial_string_view = basic_trivial_string_view<char>;
 
-constexpr trivial_string_view from_string_view(std::string_view sv) noexcept {
-    return { sv.data(), sv.size() };
+consteval trivial_string_view from_string_view(std::string_view sv) noexcept {
+    return { std::define_static_string(sv), sv.size() };
 }
 
 template<typename Action, std::size_t N>
