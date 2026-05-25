@@ -39,6 +39,8 @@ struct short_arg_annot {
     constexpr bool from_member_name() const noexcept {
         return short_name == '\0';
     }
+
+    friend constexpr bool operator==(const short_arg_annot&, const short_arg_annot&) = default;
 };
 
 struct long_arg_annot {
@@ -88,6 +90,8 @@ struct long_arg_annot {
     constexpr bool from_member_name() const noexcept {
         return long_name == nullptr;
     }
+
+    friend constexpr bool operator==(const long_arg_annot&, const long_arg_annot&) = default;
 };
 
 struct positional_annot {

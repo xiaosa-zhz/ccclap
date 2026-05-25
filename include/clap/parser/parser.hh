@@ -2,6 +2,7 @@
 #ifndef CCCLAP_PARSER_PARSER_GENERATOR_HH
 #define CCCLAP_PARSER_PARSER_GENERATOR_HH 1
 
+#include <cstddef>
 #include <concepts>
 #include <meta>
 #include <initializer_list>
@@ -10,9 +11,12 @@
 #include <inplace_vector>
 #include <flat_map>
 #include <algorithm>
+#include <ranges>
 
 #include <clap/parser/token.hh>
 #include <clap/annotations.hh>
+#include <clap/util/ascii.hh>
+#include <clap/util/casecvt.hh>
 
 /*
 
@@ -122,6 +126,100 @@ using lookup_table_entry = lookup_table<Action, 0>::value_type;
 template<typename Action, const lookup_table_entry<Action>* Table, std::size_t N>
 constexpr lookup_table<Action, N> make_lookup_table() noexcept {
     return lookup_table<Action, N>(std::from_range, std::span(Table, N));
+}
+
+template<typename Annotation>
+consteval std::vector<Annotation> annotations_of_member(std::meta::info member) {
+    return annotations_of_with_type(member, ^^Annotation)
+        | std::views::transform([](auto info) { return extract<Annotation>(info); })
+        | std::ranges::to<std::vector>();
+}
+
+consteval std::vector<annotations::short_arg_annot> get_short_names(std::meta::info member) {
+    std::vector<annotations::short_arg_annot> raw(std::from_range, std::views::concat(
+        annotations_of_member<annotations::short_arg_annot>(member),
+        annotations_of_member<annotations::named_arg_annot>(member)
+            | std::views::transform([](auto annot) { return annot.short_arg; })
+    ));
+    std::vector<annotations::short_arg_annot> result;
+    std::flat_map<char, annotations::short_arg_annot> exists;
+    for (auto annot : raw) {
+        if (annot.from_member_name()) {
+            // generete short name from member name
+            std::string_view name = identifier_of(member);
+            if (name.empty()) {
+                throw std::meta::exception(
+                    "short argument name cannot be generated from empty member name",
+                    member);
+            }
+            // look for the first alphanumeric character in the member name to use as short name
+            auto it = std::ranges::find_if(name, &ascii::is_alphanumeric<char>);
+            if (it == name.end()) {
+                throw std::meta::exception(
+                    fmtext::format("short argument name cannot be generated from member name '{}' without alphanumeric characters", name),
+                    member);
+            }
+            annot = annot(*it, annot.hidden);
+        }
+        if (auto it = exists.find(annot.short_name); it != exists.end()) {
+            if ((*it).second != annot) {
+                throw std::meta::exception(
+                    fmtext::format("conflicting short argument configuration for member '{}': '{}'",
+                        identifier_of(member), it->second.short_name),
+                    member);
+            }
+        } else {
+            exists.insert({ annot.short_name, annot });
+            result.push_back(annot);
+        }
+    }
+    return result;
+}
+
+consteval std::vector<annotations::long_arg_annot> get_long_names(std::meta::info member, style default_style) {
+    std::vector<annotations::long_arg_annot> raw(std::from_range, std::views::concat(
+        annotations_of_member<annotations::long_arg_annot>(member),
+        annotations_of_member<annotations::named_arg_annot>(member)
+            | std::views::transform([](auto annot) { return annot.long_arg; })
+    ));
+    std::vector<annotations::long_arg_annot> result;
+    std::flat_map<std::string_view, annotations::long_arg_annot> exists;
+    for (auto annot : raw) {
+        if (annot.from_member_name()) {
+            // generete long name from member name
+            std::string_view name = identifier_of(member);
+            if (name.empty()) {
+                throw std::meta::exception(
+                    "long argument name cannot be generated from empty member name",
+                    member);
+            }
+            // trim original name
+            auto last_range = std::ranges::find_last_if(name, &ascii::is_alphanumeric<char>);
+            if (last_range.empty()) {
+                throw std::meta::exception(
+                    fmtext::format("long argument name cannot be generated from member name '{}' without alphanumeric characters", name),
+                    member);
+            }
+            auto first = std::ranges::find_if(name, &ascii::is_alphanumeric<char>);
+            name = std::string_view(first, last_range.begin() + 1);
+            if (annot.long_name_style == style::unspecified) {
+                annot.long_name_style = default_style;
+            }
+            annot = annot(casecvt::convert(name, annot.long_name_style), annot.hidden);
+        }
+        if (auto it = exists.find(annot.long_name); it != exists.end()) {
+            if ((*it).second != annot) {
+                throw std::meta::exception(
+                    fmtext::format("conflicting long argument configuration for member '{}': '{}'",
+                        identifier_of(member), it->second.long_name),
+                    member);
+            }
+        } else {
+            exists.insert({ annot.long_name, annot });
+            result.push_back(annot);
+        }
+    }
+    return result;
 }
 
 } // namespace clap::details

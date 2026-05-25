@@ -1,3 +1,4 @@
+#include "clap/annotations.hh"
 #include "clap/util/casecvt.hh"
 #include <clap/util/cstring.hh>
 #include <clap/util/ascii.hh>
@@ -88,9 +89,19 @@ constexpr void lut_test() {
     lut.at("baz")();
 }
 
+struct test_command {
+    [[=clap::arg, =clap::arg('V'), =clap::long_arg(clap::style::snake)]]
+    bool verbose;
+};
+
+constexpr auto short_names = std::define_static_array(clap::details::get_short_names(^^test_command::verbose));
+constexpr auto long_names = std::define_static_array(clap::details::get_long_names(^^test_command::verbose, style::kebab));
+
 int main(int argc, char** argv) {
     parse(argc, argv);
     lut_test();
+    fmtext::println("{}", short_names | std::views::transform([](const auto& annot) { return annot.short_name; }));
+    fmtext::println("{}", long_names | std::views::transform([](const auto& annot) { return annot.long_name; }));
     fmtext::println(test_format_to);
     fmtext::println("Hello, world from fmt + C++26!");
 
