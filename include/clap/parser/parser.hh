@@ -274,6 +274,9 @@ private:
     template<typename CMD>
     using action_type = void(*)(parser&, CMD&);
 
+    // TODO: reconsider the design of propagated operations,
+    // since it needs outside CMD argument, not current one.
+
     template<std::meta::info Arg, typename CMD>
     void parse_argument(this parser& self, CMD& cmd) {}
 
