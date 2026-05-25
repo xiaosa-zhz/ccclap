@@ -5,7 +5,6 @@
 #include <cstddef>
 #include <concepts>
 #include <meta>
-#include <initializer_list>
 #include <string_view>
 #include <utility>
 #include <inplace_vector>
@@ -51,18 +50,6 @@ struct program {
 namespace clap {
 
 namespace details {
-
-consteval std::meta::info find_subcommands(std::meta::info type) {
-    for (auto member : nonstatic_data_members_of(type, std::meta::access_context::current())) {
-        auto type = dealias(type_of(member));
-        if (has_template_arguments(type)
-            && template_of(type) == ^^std::variant
-            && dealias(template_arguments_of(type)[0]) == ^^std::monostate) {
-            return member;
-        }
-    }
-    return {};
-}
 
 // FIXME: GCC does not have trivial union yet, making std::inplace_vector
 // not capable for non-trivial types during constant evaluation.
@@ -219,6 +206,24 @@ consteval std::vector<annotations::long_arg_annot> get_long_names(std::meta::inf
         }
     }
     return result;
+}
+
+consteval std::meta::info find_subcommands(std::meta::info type) {
+    std::meta::info subcommands_member = {};
+    for (auto member : nonstatic_data_members_of(type, std::meta::access_context::current())) {
+        auto type = decay(type_of(member));
+        if (has_template_arguments(type)
+            && template_of(type) == ^^std::variant
+            && decay(template_arguments_of(type)[0]) == ^^annotations::subcommand_tag) {
+            if (subcommands_member != std::meta::info{}) {
+                throw std::meta::exception(
+                    "multiple subcommands members found, only one is allowed",
+                    type);
+            }
+            subcommands_member = member;
+        }
+    }
+    return subcommands_member;
 }
 
 } // namespace clap::details

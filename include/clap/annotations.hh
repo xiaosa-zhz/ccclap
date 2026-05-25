@@ -268,10 +268,14 @@ struct env_var_naming_style_annot {
     }
 };
 
+// Tag type to indicate a subcommands variant.
+// Put it as the first member of std::variant.
+struct subcommand_tag {};
+
 } // namespace annotations
 
 template<typename... CMDs>
-using subcommands = std::variant<std::monostate, CMDs...>;
+using subcommands = std::variant<annotations::subcommand_tag, CMDs...>;
 
 // Generate short argument ('-x')
 // Use the first character of the member name by default,
