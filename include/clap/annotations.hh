@@ -2,6 +2,7 @@
 #ifndef CCCLAP_ANNOTATIONS_H
 #define CCCLAP_ANNOTATIONS_H 1
 
+#include <concepts>
 #include <cstddef>
 #include <meta>
 #include <string_view>
@@ -208,7 +209,7 @@ struct propagated_annot {};
 
 struct shadow_parent_annot {};
 
-template<typename... CMDs>
+template<std::default_initializable... CMDs>
 using subcommands = std::variant<std::monostate, CMDs...>;
 
 struct subcommand_name_annot {

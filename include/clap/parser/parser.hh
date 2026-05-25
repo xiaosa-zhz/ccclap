@@ -240,7 +240,8 @@ public:
     {}
 
     template<typename CMD>
-    void parse(CMD& cmd) {
+    CMD parse() {
+        CMD cmd;
         constexpr static bool enable_multicall = !annotations_of_with_type(^^CMD,
             ^^annotations::multicall_annot).empty();
         if constexpr (enable_multicall) {
@@ -252,6 +253,7 @@ public:
             }();
         }
         parse_command(cmd);
+        return cmd;
     }
 
 private:
