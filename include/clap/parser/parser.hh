@@ -95,20 +95,20 @@ struct NTCS_comparator {
     }
 
     template<std::convertible_to<std::string_view> V>
-    [[nodiscard]] static constexpr bool operator()(const char* lhs, V&& view) noexcept {
+    [[nodiscard]] static constexpr bool operator()(const char* lhs, V&& rhs) noexcept {
         return std::ranges::lexicographical_compare(
-            null_term(lhs), std::string_view(std::forward<V>(view)));
+            null_term(lhs), std::string_view(std::forward<V>(rhs)));
     }
 
     template<std::convertible_to<std::string_view> V>
-    [[nodiscard]] static constexpr bool operator()(V&& view, const char* rhs) noexcept {
+    [[nodiscard]] static constexpr bool operator()(V&& lhs, const char* rhs) noexcept {
         return std::ranges::lexicographical_compare(
-            std::string_view(std::forward<V>(view)), null_term(rhs));
+            std::string_view(std::forward<V>(lhs)), null_term(rhs));
     }
 
     template<std::convertible_to<std::string_view> V1, std::convertible_to<std::string_view> V2>
-    [[nodiscard]] static constexpr bool operator()(V1&& v1, V2&& v2) noexcept {
-        return std::string_view(std::forward<V1>(v1)) < std::string_view(std::forward<V2>(v2));
+    [[nodiscard]] static constexpr bool operator()(V1&& lhs, V2&& rhs) noexcept {
+        return std::string_view(std::forward<V1>(lhs)) < std::string_view(std::forward<V2>(rhs));
     }
 };
 
