@@ -11,6 +11,7 @@
 #include <flat_map>
 #include <algorithm>
 #include <ranges>
+#include <array>
 
 #include <clap/parser/token.hh>
 #include <clap/annotations.hh>
@@ -114,6 +115,9 @@ template<typename Action, const lookup_table_entry<Action>* Table, std::size_t N
 constexpr lookup_table<Action, N> make_lookup_table() noexcept {
     return lookup_table<Action, N>(std::from_range, std::span(Table, N));
 }
+
+template<typename Action>
+using short_name_map = std::array<Action, 128>;
 
 consteval std::vector<annotations::short_arg_annot> get_short_names(std::meta::info member) {
     std::vector<annotations::short_arg_annot> result;
@@ -267,10 +271,16 @@ private:
         return unparsed_token;
     }
 
+    template<typename CMD>
+    using action_type = void(*)(parser&, CMD&);
+
     template<std::meta::info Arg, typename CMD>
     void parse_argument(this parser& self, CMD& cmd) {}
 
-    template<typename CMD, const lookup_table_entry<Action>* Table, std::size_t N>
+    template<typename CMD,
+        const details::lookup_table_entry<action_type<CMD>>* LongLookup, std::size_t N,
+        const action_type<CMD>* ShortLookup
+    >
     void parse_command(this parser& self, CMD& cmd) {}
 
     token_view::iterator cur;
