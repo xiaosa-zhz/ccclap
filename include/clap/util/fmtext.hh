@@ -207,22 +207,42 @@ void println(FILE* f, format_cstring<Args...> fmt, Args&&... args)
 }
 
 template<typename... Args>
-std::string plural_format(format_cstring<Args...> fmt,
-                          format_cstring<Args...> fmt_plural,
-                          Args&&... args) {
-    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
-        details::extract_plural_arg(args...));
-    return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
+constexpr std::string plural_format(format_cstring<Args...> fmt,
+                                    format_cstring<Args...> fmt_plural,
+                                    Args&&... args) {
+    if consteval {
+        unsigned long n = details::extract_plural_arg(args...);
+        auto chosen = (n == 1) ? fmt.get() : fmt_plural.get();
+        return extract<std::string(*)(Args&&...)>(substitute(^^details::format, {
+            substitute(^^details::compiled_string, { std::meta::reflect_constant_string(chosen) }),
+            ^^Args...
+        }))(std::forward<Args>(args)...);
+    } else {
+        const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+            details::extract_plural_arg(args...));
+        return fmt::vformat(translated_fmt, fmt::make_format_args(args...));
+    }
 }
 
 template<std::output_iterator<char> Out, typename... Args>
-auto plural_format_to(Out out,
-                      format_cstring<Args...> fmt,
-                      format_cstring<Args...> fmt_plural,
-                      Args&&... args) {
-    const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
-        details::extract_plural_arg(args...));
-    return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
+constexpr auto plural_format_to(Out out,
+                                format_cstring<Args...> fmt,
+                                format_cstring<Args...> fmt_plural,
+                                Args&&... args) {
+    if consteval {
+        unsigned long n = details::extract_plural_arg(args...);
+        auto chosen = (n == 1) ? fmt.get() : fmt_plural.get();
+        return extract<Out(*)(Out, Args&&...)>(
+            substitute(^^details::format_to, {
+                substitute(^^details::compiled_string, { std::meta::reflect_constant_string(chosen) }),
+                ^^Out, ^^Args...
+            })
+        )(std::move(out), std::forward<Args>(args)...);
+    } else {
+        const char* translated_fmt = details::ngettext(fmt.c_str(), fmt_plural.c_str(),
+            details::extract_plural_arg(args...));
+        return fmt::vformat_to(std::move(out), translated_fmt, fmt::make_format_args(args...));
+    }
 }
 
 template<std::output_iterator<char> Out, typename... Args>
