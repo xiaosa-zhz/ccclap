@@ -128,22 +128,18 @@ constexpr lookup_table<Action, N> make_lookup_table() noexcept {
     return lookup_table<Action, N>(std::from_range, std::span(Table, N));
 }
 
-template<typename Annotation>
-consteval std::vector<Annotation> annotations_of_member(std::meta::info member) {
-    return annotations_of_with_type(member, ^^Annotation)
-        | std::views::transform([](auto info) { return extract<Annotation>(info); })
-        | std::ranges::to<std::vector>();
-}
-
 consteval std::vector<annotations::short_arg_annot> get_short_names(std::meta::info member) {
-    std::vector<annotations::short_arg_annot> raw(std::from_range, std::views::concat(
-        annotations_of_member<annotations::short_arg_annot>(member),
-        annotations_of_member<annotations::named_arg_annot>(member)
-            | std::views::transform(&annotations::named_arg_annot::short_arg)
-    ));
     std::vector<annotations::short_arg_annot> result;
     std::flat_map<char, annotations::short_arg_annot> exists;
-    for (auto annot : raw) {
+    for (auto info : annotations_of(member)) {
+        auto annot = short_arg;
+        if (decay(type_of(info)) == ^^annotations::short_arg_annot) {
+            annot = extract<annotations::short_arg_annot>(info);
+        } else if (decay(type_of(info)) == ^^annotations::named_arg_annot) {
+            annot = extract<annotations::named_arg_annot>(info).short_arg;
+        } else {
+            continue;
+        }
         if (annot.from_member_name()) {
             // generete short name from member name
             std::string_view name = identifier_of(member);
@@ -177,14 +173,17 @@ consteval std::vector<annotations::short_arg_annot> get_short_names(std::meta::i
 }
 
 consteval std::vector<annotations::long_arg_annot> get_long_names(std::meta::info member, style default_style) {
-    std::vector<annotations::long_arg_annot> raw(std::from_range, std::views::concat(
-        annotations_of_member<annotations::long_arg_annot>(member),
-        annotations_of_member<annotations::named_arg_annot>(member)
-            | std::views::transform(&annotations::named_arg_annot::long_arg)
-    ));
     std::vector<annotations::long_arg_annot> result;
     std::flat_map<std::string_view, annotations::long_arg_annot> exists;
-    for (auto annot : raw) {
+    for (auto info : annotations_of(member)) {
+        auto annot = long_arg;
+        if (decay(type_of(info)) == ^^annotations::long_arg_annot) {
+            annot = extract<annotations::long_arg_annot>(info);
+        } else if (decay(type_of(info)) == ^^annotations::named_arg_annot) {
+            annot = extract<annotations::named_arg_annot>(info).long_arg;
+        } else {
+            continue;
+        }
         if (annot.from_member_name()) {
             // generete long name from member name
             std::string_view name = identifier_of(member);
