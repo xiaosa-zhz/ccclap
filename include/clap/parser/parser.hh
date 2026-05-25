@@ -268,14 +268,10 @@ private:
     }
 
     template<std::meta::info Arg, typename CMD>
-    void parse_argument(this parser& self, CMD& cmd) {
-        
-    }
+    void parse_argument(this parser& self, CMD& cmd) {}
 
-    template<typename CMD>
-    void parse_command(CMD& cmd) {
-        nonstatic_data_members_of(^^CMD, std::meta::access_context::current());
-    }
+    template<typename CMD, const lookup_table_entry<Action>* Table, std::size_t N>
+    void parse_command(this parser& self, CMD& cmd) {}
 
     token_view::iterator cur;
     token_view::iterator end;
