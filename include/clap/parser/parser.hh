@@ -139,7 +139,7 @@ consteval std::vector<annotations::short_arg_annot> get_short_names(std::meta::i
     std::vector<annotations::short_arg_annot> raw(std::from_range, std::views::concat(
         annotations_of_member<annotations::short_arg_annot>(member),
         annotations_of_member<annotations::named_arg_annot>(member)
-            | std::views::transform([](auto annot) { return annot.short_arg; })
+            | std::views::transform(&annotations::named_arg_annot::short_arg)
     ));
     std::vector<annotations::short_arg_annot> result;
     std::flat_map<char, annotations::short_arg_annot> exists;
@@ -180,7 +180,7 @@ consteval std::vector<annotations::long_arg_annot> get_long_names(std::meta::inf
     std::vector<annotations::long_arg_annot> raw(std::from_range, std::views::concat(
         annotations_of_member<annotations::long_arg_annot>(member),
         annotations_of_member<annotations::named_arg_annot>(member)
-            | std::views::transform([](auto annot) { return annot.long_arg; })
+            | std::views::transform(&annotations::named_arg_annot::long_arg)
     ));
     std::vector<annotations::long_arg_annot> result;
     std::flat_map<std::string_view, annotations::long_arg_annot> exists;
