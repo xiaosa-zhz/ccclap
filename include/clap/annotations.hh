@@ -20,6 +20,8 @@ using style = casecvt::style;
 
 namespace annotations {
 
+inline namespace argument_annotations {
+
 struct short_arg_annot {
     char short_name = '\0';
     bool hidden = false;
@@ -209,6 +211,10 @@ struct propagated_annot {};
 
 struct shadow_parent_annot {};
 
+} // namespace clap::annotations::argument_annotations
+
+inline namespace command_annotations {
+
 struct subcommand_name_annot {
     const char* name = nullptr;
     style command_name_style = style::unspecified;
@@ -266,12 +272,15 @@ struct env_var_naming_style_annot {
     }
 };
 
+} // namespace clap::annotations::command_annotations
+
 // Tag type to indicate a subcommands variant.
 // Put it as the first member of std::variant.
 struct subcommand_tag {};
 
 } // namespace annotations
 
+// Convienient aliases for subcommand variants.
 template<typename... CMDs>
 using subcommands = std::variant<annotations::subcommand_tag, CMDs...>;
 
