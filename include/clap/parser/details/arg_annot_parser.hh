@@ -12,6 +12,8 @@
 
 namespace clap::details {
 
+namespace argument_annotation_parsers {
+
 struct noop_parser {
     constexpr void do_parse(...) const noexcept {}
     constexpr void do_build() const noexcept {}
@@ -41,15 +43,17 @@ struct help_parser {
 template<>
 inline constexpr std::meta::info find_argument_parser<annotations::help_annot> = ^^help_parser;
 
+} // namespace clap::details::argument_annotation_parsers
+
 template<typename... Parsers>
-struct all_argument_annotation_parser : Parsers... {
+struct combined_argument_annotation_parser : Parsers... {
     using Parsers::do_parse...;
-    using parse_helper_type = void(*)(all_argument_annotation_parser&);
+    using parse_helper_type = void(*)(combined_argument_annotation_parser&);
 
     // FIXME: GCC has a bug that member function template (all kind of them)
     // could not have correct type when using meta::substitute on them.
     template<std::meta::info Annot>
-    static constexpr parse_helper_type parse_helper = +[](all_argument_annotation_parser& parser) {
+    static constexpr parse_helper_type parse_helper = +[](combined_argument_annotation_parser& parser) {
         parser.do_parse([:constant_of(Annot):]);
     };
 
@@ -61,15 +65,17 @@ struct all_argument_annotation_parser : Parsers... {
 };
 
 using argument_annotation_parser = [:[] consteval {
-    std::vector parser_types = members_of(^^annotations::argument_annotations, std::meta::access_context::current())
+    auto parser_types = members_of(^^annotations::argument_annotations, std::meta::access_context::current())
         | std::views::transform([](std::meta::info annot_type) {
-            return extract<std::meta::info>(substitute(^^find_argument_parser, { annot_type }));
+            return extract<std::meta::info>(
+                substitute(^^argument_annotation_parsers::find_argument_parser, { annot_type })
+            );
         })
         | std::ranges::to<std::vector>();
     std::ranges::sort(parser_types, [](auto a, auto b) { return type_order(a, b) < 0; });
     auto [first, last] = std::ranges::unique(parser_types);
     parser_types.erase(first, last);
-    return substitute(^^all_argument_annotation_parser, parser_types);
+    return substitute(^^combined_argument_annotation_parser, parser_types);
 }():];
 
 } // namespace clap::details
