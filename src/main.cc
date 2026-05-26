@@ -97,12 +97,19 @@ struct test_command {
 constexpr auto short_names = std::define_static_array(clap::details::get_short_names(^^test_command::verbose));
 constexpr auto long_names = std::define_static_array(clap::details::get_long_names(^^test_command::verbose, style::kebab));
 
+consteval {
+    clap::details::argument_annotation_parser parser;
+    constexpr static annotations::short_arg_annot annot = {};
+    parser.parse(^^annot);
+}
+
 int main(int argc, char** argv) {
     parse(argc, argv);
     lut_test();
     fmtext::println("{}", short_names | std::views::transform(&clap::annotations::short_arg_annot::short_name));
     fmtext::println("{}", long_names | std::views::transform(&clap::annotations::long_arg_annot::long_name));
     fmtext::println(test_format_to);
+    fmtext::println("{}", display_string_of(^^clap::details::argument_annotation_parser));
     fmtext::println("Hello, world from fmt + C++26!");
 
     // --- basic_cstring_view demo ---

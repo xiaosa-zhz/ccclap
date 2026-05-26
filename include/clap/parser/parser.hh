@@ -17,6 +17,7 @@
 #include <clap/annotations.hh>
 #include <clap/util/ascii.hh>
 #include <clap/util/casecvt.hh>
+#include <clap/parser/details/arg_annot_parser.hh>
 
 /*
 
