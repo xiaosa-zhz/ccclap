@@ -119,6 +119,16 @@ constexpr lookup_table<Action, N> make_lookup_table() noexcept {
 template<typename Action>
 using short_name_map = std::array<Action, 128>;
 
+template<typename CMD, typename ParentEnv = void>
+struct command_env : ParentEnv {
+
+};
+
+template<typename CMD>
+struct command_env<CMD, void> {
+
+};
+
 consteval std::vector<annotations::short_arg_annot> get_short_names(std::meta::info member) {
     std::vector<annotations::short_arg_annot> result;
     std::flat_map<char, annotations::short_arg_annot> exists;
@@ -246,7 +256,7 @@ public:
     template<typename CMD>
     CMD parse() {
         CMD cmd;
-        constexpr static bool enable_multicall = !annotations_of_with_type(^^CMD,
+        static constexpr bool enable_multicall = !annotations_of_with_type(^^CMD,
             ^^annotations::multicall_annot).empty();
         if constexpr (enable_multicall) {
             [] consteval {
@@ -271,20 +281,14 @@ private:
         return unparsed_token;
     }
 
-    template<typename CMD>
-    using action_type = void(*)(parser&, CMD&);
+    template<typename Env>
+    using action_type = void(*)(parser&, Env&);
 
-    // TODO: reconsider the design of propagated operations,
-    // since it needs outside CMD argument, not current one.
+    template<std::meta::info Arg, typename Env>
+    void parse_argument(this parser& self, Env& env) {}
 
-    template<std::meta::info Arg, typename CMD>
-    void parse_argument(this parser& self, CMD& cmd) {}
-
-    template<typename CMD,
-        const details::lookup_table_entry<action_type<CMD>>* LongLookup, std::size_t N,
-        const action_type<CMD>* ShortLookup
-    >
-    void parse_command(this parser& self, CMD& cmd) {}
+    template<typename Env>
+    void parse_command(this parser& self, Env& env) {}
 
     token_view::iterator cur;
     token_view::iterator end;

@@ -75,7 +75,7 @@ constexpr const char* kebab_case = [] consteval {
 
 constexpr void lut_test() {
     using action_type = void(*)();
-    constexpr static auto raw = [] consteval {
+    static constexpr auto raw = [] consteval {
         std::vector<clap::details::lookup_table_entry<action_type>> r = {
             {std::define_static_string("foo"), +[] { fmtext::println("foo"); }},
             {std::define_static_string("bar"), +[] { fmtext::println("bar"); }},
@@ -83,7 +83,7 @@ constexpr void lut_test() {
         };
         return std::define_static_array(r);
     }();
-    constexpr static auto lut = clap::details::make_lookup_table<action_type, raw.data(), raw.size()>();
+    static constexpr auto lut = clap::details::make_lookup_table<action_type, raw.data(), raw.size()>();
     lut.at("foo")();
     lut.at("bar")();
     lut.at("baz")();
@@ -139,7 +139,7 @@ int main(int argc, char** argv) {
 
     // 9. literal _csv
     using namespace clap::literals;
-    constexpr static cstring_view lit = "compile-time literal: {}"_csv;
+    static constexpr cstring_view lit = "compile-time literal: {}"_csv;
     fmtext::println(lit, "_csv literal"_csv);
 
     // 10. comparison
