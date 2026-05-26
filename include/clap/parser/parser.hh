@@ -1,6 +1,6 @@
 #pragma once
-#ifndef CCCLAP_PARSER_PARSER_GENERATOR_HH
-#define CCCLAP_PARSER_PARSER_GENERATOR_HH 1
+#ifndef CCCLAP_PARSER_PARSER_GENERATOR_H
+#define CCCLAP_PARSER_PARSER_GENERATOR_H 1
 
 #include <cstddef>
 #include <concepts>
@@ -126,7 +126,9 @@ struct command_env : ParentEnv {
 
 template<typename CMD>
 struct command_env<CMD, void> {
-
+    static constexpr auto subcommand_lut = 0;
+    static constexpr auto short_lut = 0;
+    static constexpr auto long_lut = 0;
 };
 
 consteval std::vector<annotations::short_arg_annot> get_short_names(std::meta::info member) {
@@ -324,4 +326,4 @@ constexpr bool is_negative_number() const noexcept {
 
 } // namespace clap
 
-#endif // !CCCLAP_PARSER_PARSER_GENERATOR_HH
+#endif // !CCCLAP_PARSER_PARSER_GENERATOR_H

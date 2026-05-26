@@ -209,9 +209,6 @@ struct propagated_annot {};
 
 struct shadow_parent_annot {};
 
-template<std::default_initializable... CMDs>
-using subcommands = std::variant<std::monostate, CMDs...>;
-
 struct subcommand_name_annot {
     const char* name = nullptr;
     style command_name_style = style::unspecified;
