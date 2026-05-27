@@ -2,7 +2,6 @@
 #ifndef CCCLAP_PARSER_DETAILS_ARGUMENT_ANNOTATION_PARSER_H
 #define CCCLAP_PARSER_DETAILS_ARGUMENT_ANNOTATION_PARSER_H 1
 
-#include <cstddef>
 #include <meta>
 #include <concepts>
 #include <algorithm>
@@ -23,7 +22,7 @@ namespace argument_annotation_parsers {
 
 // Fallback parser that does nothing, used for annotations without specific parser.
 struct noop_parser {
-    consteval void do_parse(std::meta::info member, std::meta::info annot, const parsing_environment& env) const noexcept {}
+    consteval void do_parse(...) const noexcept {}
     consteval void do_build() const noexcept {}
 };
 
@@ -31,7 +30,7 @@ template<typename Annot>
 inline constexpr std::meta::info find_argument_parser = ^^noop_parser;
 
 struct arg_name_parser {
-    consteval void do_parse_long(std::meta::info member, annotations::long_arg_annot annot, const parsing_environment& env) {
+    consteval void do_parse(annotations::long_arg_annot annot, std::meta::info member, const parsing_environment& env) {
         if (annot.from_member_name()) {
             // generete long name from member name
             std::string_view name = identifier_of(member);
@@ -67,7 +66,7 @@ struct arg_name_parser {
         }
     }
 
-    consteval void do_parse_short(std::meta::info member, annotations::short_arg_annot annot, const parsing_environment& env) {
+    consteval void do_parse(annotations::short_arg_annot annot, std::meta::info member, const parsing_environment& env) {
         if (annot.from_member_name()) {
             // generete short name from member name
             std::string_view name = identifier_of(member);
@@ -98,25 +97,9 @@ struct arg_name_parser {
         }
     }
 
-    consteval void do_parse_named(std::meta::info member, annotations::named_arg_annot annot, const parsing_environment& env) {
-        do_parse_long(member, annot.long_arg, env);
-        do_parse_short(member, annot.short_arg, env);
-    }
-
-    consteval void do_parse(std::meta::info member, std::meta::info annot, const parsing_environment& env) {
-        auto annot_type = remove_const(type_of(annot));
-        if (annot_type == ^^annotations::long_arg_annot) {
-            do_parse_long(member, extract<annotations::long_arg_annot>(annot), env);
-        } else if (annot_type == ^^annotations::short_arg_annot) {
-            do_parse_short(member, extract<annotations::short_arg_annot>(annot), env);
-        } else if (annot_type == ^^annotations::named_arg_annot) {
-            do_parse_named(member, extract<annotations::named_arg_annot>(annot), env);
-        } else {
-            // should not reach here since this parser is only selected for argument annotations
-            throw std::meta::exception(
-                "invalid annotation type for arg_name_parser",
-                {});
-        }
+    consteval void do_parse(annotations::named_arg_annot annot, std::meta::info member, const parsing_environment& env) {
+        do_parse(annot.long_arg, member, env);
+        do_parse(annot.short_arg, member, env);
     }
 
     consteval void do_build() const noexcept {}
@@ -135,7 +118,7 @@ template<typename Annot>
 inline constexpr std::meta::info find_argument_parser<Annot> = ^^arg_name_parser;
 
 struct help_parser {
-    consteval void do_parse(std::meta::info member, std::meta::info annot, const parsing_environment& env) {}
+    consteval void do_parse(annotations::help_annot annot, std::meta::info member, const parsing_environment& env) {}
     consteval void do_build() const noexcept {}
 };
 
@@ -144,17 +127,20 @@ inline constexpr std::meta::info find_argument_parser<annotations::help_annot> =
 
 } // namespace clap::details::argument_annotation_parsers
 
+template<typename Parser, std::meta::info Annot>
+consteval void do_parse_helper(Parser& parser, std::meta::info member, const parsing_environment& env) {
+    parser.do_parse([:constant_of(Annot):], member, env);
+}
+
 template<typename... Parsers>
 struct combined_argument_annotation_parser : Parsers... {
+    using Parsers::do_parse...;
+
     consteval void parse(std::meta::info member) {
         for (auto annot : annotations_of(member)) {
-            auto target_parser = extract<std::meta::info>(
-                substitute(^^argument_annotation_parsers::find_argument_parser, { remove_const(type_of(annot)) }));
-            template for (constexpr std::meta::info parser : { ^^Parsers... }) { 
-                if (parser == target_parser) {
-                    this->[:parser:]::do_parse(member, annot, env);
-                }
-            }
+            extract<void(*)(combined_argument_annotation_parser&, std::meta::info, const parsing_environment&)>(
+                substitute(^^do_parse_helper, { ^^combined_argument_annotation_parser, reflect_constant(annot) })
+            )(*this, member, env);
         }
     }
 
@@ -169,6 +155,9 @@ using argument_annotation_parser = [:[] consteval {
             );
         })
         | std::ranges::to<std::vector>();
+    // always add a noop_parser, so that unrelated annotations
+    // from other namespaces can be ignored without special handling.
+    parser_types.push_back(^^argument_annotation_parsers::noop_parser);
     std::ranges::sort(parser_types, [](auto a, auto b) { return type_order(a, b) < 0; });
     auto [first, last] = std::ranges::unique(parser_types);
     parser_types.erase(first, last);
