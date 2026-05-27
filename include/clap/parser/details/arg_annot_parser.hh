@@ -149,6 +149,23 @@ struct help_parser {
 template<>
 inline constexpr std::meta::info find_argument_parser<annotations::help_annot> = ^^help_parser;
 
+struct flags_parser {
+    consteval void do_parse(annotations::propagated_annot, std::meta::info, const parsing_environment&) noexcept {
+        is_propagated = true;
+    }
+    consteval void do_parse(annotations::shadow_parent_annot, std::meta::info, const parsing_environment&) noexcept {
+        shadows_parent = true;
+    }
+
+    bool is_propagated = false;
+    bool shadows_parent = false;
+};
+
+template<>
+inline constexpr std::meta::info find_argument_parser<annotations::propagated_annot> = ^^flags_parser;
+template<>
+inline constexpr std::meta::info find_argument_parser<annotations::shadow_parent_annot> = ^^flags_parser;
+
 } // namespace clap::details::argument_annotation_parsers
 
 template<typename Parser, std::meta::info Annot>
