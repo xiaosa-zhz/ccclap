@@ -2,10 +2,13 @@
 #ifndef CCCLAP_PARSER_DETAILS_ARGUMENT_ANNOTATION_PARSER_H
 #define CCCLAP_PARSER_DETAILS_ARGUMENT_ANNOTATION_PARSER_H 1
 
+#include <cstddef>
+#include <limits>
 #include <meta>
 #include <concepts>
 #include <algorithm>
 #include <ranges>
+#include <optional>
 
 #include <clap/annotations.hh>
 #include <clap/util/fmtext.hh>
@@ -114,8 +117,24 @@ template<typename Annot>
         || std::same_as<Annot, annotations::named_arg_annot>
 inline constexpr std::meta::info find_argument_parser<Annot> = ^^arg_name_parser;
 
+struct positional_parser {
+    consteval void do_parse(annotations::positional_annot annot, std::meta::info member, const parsing_environment&) {
+        if (positional.has_value()) {
+            throw std::meta::exception(
+                fmtext::format("multiple positional annotations for member '{}'", identifier_of(member)),
+                member);
+        }
+        positional = annot;
+    }
+
+    std::optional<annotations::positional_annot> positional;
+};
+
+template<>
+inline constexpr std::meta::info find_argument_parser<annotations::positional_annot> = ^^positional_parser;
+
 struct help_parser {
-    consteval void do_parse(annotations::help_annot annot, std::meta::info member, const parsing_environment& env) {
+    consteval void do_parse(annotations::help_annot annot, std::meta::info member, const parsing_environment&) {
         if (annot.help_text != annotations::help_annot::default_help) {
             if (help_text != annotations::help_annot::default_help) {
                 throw std::meta::exception(
