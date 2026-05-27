@@ -100,7 +100,7 @@ constexpr auto long_names = std::define_static_array(clap::details::get_long_nam
 consteval {
     clap::details::argument_annotation_parser parser;
     constexpr static annotations::short_arg_annot annot = {};
-    parser.parse(^^annot);
+    parser.parse(^^test_command::verbose, ^^annot);
 }
 
 int main(int argc, char** argv) {
