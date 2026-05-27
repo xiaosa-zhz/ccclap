@@ -23,7 +23,6 @@ namespace argument_annotation_parsers {
 // Fallback parser that does nothing, used for annotations without specific parser.
 struct noop_parser {
     consteval void do_parse(...) const noexcept {}
-    consteval void do_build() const noexcept {}
 };
 
 template<typename Annot>
@@ -102,8 +101,6 @@ struct arg_name_parser {
         do_parse(annot.short_arg, member, env);
     }
 
-    consteval void do_build() const noexcept {}
-
     std::vector<annotations::short_arg_annot> short_args;
     std::vector<annotations::long_arg_annot> long_args;
 private:
@@ -118,8 +115,18 @@ template<typename Annot>
 inline constexpr std::meta::info find_argument_parser<Annot> = ^^arg_name_parser;
 
 struct help_parser {
-    consteval void do_parse(annotations::help_annot annot, std::meta::info member, const parsing_environment& env) {}
-    consteval void do_build() const noexcept {}
+    consteval void do_parse(annotations::help_annot annot, std::meta::info member, const parsing_environment& env) {
+        if (annot.help_text != annotations::help_annot::default_help) {
+            if (help_text != annotations::help_annot::default_help) {
+                throw std::meta::exception(
+                    fmtext::format("multiple help annotations for member '{}'", identifier_of(member)),
+                    member);
+            }
+            help_text = annot.help_text;
+        }
+    }
+
+    const char* help_text = annotations::help_annot::default_help;
 };
 
 template<>

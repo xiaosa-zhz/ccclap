@@ -91,6 +91,7 @@ constexpr void lut_test() {
 
 struct test_command {
     [[=clap::arg, =clap::arg('C'), =clap::long_arg(clap::style::snake)]]
+    [[=clap::help("Whether to copy files instead of creating hard links")]]
     bool copy_cat;
 };
 
@@ -107,11 +108,18 @@ constexpr auto long_names = std::define_static_array([] consteval {
     return std::move(parser.long_args);
 }());
 
+constexpr auto help_text = [] consteval {
+    clap::details::argument_annotation_parser parser;
+    parser.parse(^^test_command::copy_cat);
+    return parser.help_text;
+}();
+
 int main(int argc, char** argv) {
     parse(argc, argv);
     lut_test();
     fmtext::println("{}", short_names | std::views::transform(&clap::annotations::short_arg_annot::short_name));
     fmtext::println("{}", long_names | std::views::transform(&clap::annotations::long_arg_annot::long_name));
+    fmtext::println("{}", help_text);
     fmtext::println(test_format_to);
     fmtext::println("{}", display_string_of(^^clap::details::argument_annotation_parser));
     fmtext::println("Hello, world from fmt + C++26!");
