@@ -90,18 +90,22 @@ constexpr void lut_test() {
 }
 
 struct test_command {
-    [[=clap::arg, =clap::arg('V'), =clap::long_arg(clap::style::snake)]]
-    bool verbose;
+    [[=clap::arg, =clap::arg('C'), =clap::long_arg(clap::style::snake)]]
+    bool copy_cat;
 };
 
-constexpr auto short_names = std::define_static_array(clap::details::get_short_names(^^test_command::verbose));
-constexpr auto long_names = std::define_static_array(clap::details::get_long_names(^^test_command::verbose, style::kebab));
-
-consteval {
+constexpr auto short_names = std::define_static_array([] consteval {
     clap::details::argument_annotation_parser parser;
-    constexpr static annotations::short_arg_annot annot = {};
-    parser.parse(^^test_command::verbose, ^^annot);
-}
+    parser.parse(^^test_command::copy_cat);
+    return std::move(parser.short_args);
+}());
+
+constexpr auto long_names = std::define_static_array([] consteval {
+    clap::details::argument_annotation_parser parser;
+    parser.env.default_arg_style.naming_style = clap::style::kebab;
+    parser.parse(^^test_command::copy_cat);
+    return std::move(parser.long_args);
+}());
 
 int main(int argc, char** argv) {
     parse(argc, argv);

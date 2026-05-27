@@ -146,26 +146,20 @@ inline constexpr std::meta::info find_argument_parser<annotations::help_annot> =
 
 template<typename... Parsers>
 struct combined_argument_annotation_parser : Parsers... {
-    constexpr void parse(std::meta::info member, std::meta::info annot) {
-        // extract<parse_helper_type>(
-        //     substitute(^^parse_helper, { reflect_constant(annot) })
-        // )(*this, member);
-        auto target_parser = extract<std::meta::info>(
-            substitute(^^argument_annotation_parsers::find_argument_parser, { remove_const(type_of(annot)) }));
-        template for (constexpr std::meta::info parser : { ^^Parsers... }) { 
-            if (parser == target_parser) {
-                this->[:parser:]::do_parse(member, annot, env);
-                break;
+    consteval void parse(std::meta::info member) {
+        for (auto annot : annotations_of(member)) {
+            auto target_parser = extract<std::meta::info>(
+                substitute(^^argument_annotation_parsers::find_argument_parser, { remove_const(type_of(annot)) }));
+            template for (constexpr std::meta::info parser : { ^^Parsers... }) { 
+                if (parser == target_parser) {
+                    this->[:parser:]::do_parse(member, annot, env);
+                }
             }
         }
     }
 
     parsing_environment env;
 };
-
-/*
-annot_type -> parser_type
-*/
 
 using argument_annotation_parser = [:[] consteval {
     auto parser_types = members_of(^^annotations::argument_annotations, std::meta::access_context::current())
