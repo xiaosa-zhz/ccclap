@@ -6,6 +6,9 @@
 #include <algorithm>
 #include <ranges>
 #include <optional>
+#include <flat_map>
+#include <flat_set>
+#include <vector>
 
 #include <clap/annotations.hh>
 #include <clap/util/fmtext.hh>
@@ -52,16 +55,16 @@ struct arg_name_parser {
             }
             annot = annot(casecvt::convert(name, annot.long_name_style), annot.hidden);
         }
-        if (auto it = long_exists.find(annot.long_name); it != long_exists.end()) {
+        if (auto res = long_exists.insert({ annot.long_name, annot }); res.second) {
+            long_args.push_back(annot);
+        } else {
+            auto it = res.first;
             if ((*it).second != annot) {
                 throw std::meta::exception(
                     fmtext::format("conflicting long argument configuration for member '{}': '{}'",
                         identifier_of(member), it->second.long_name),
                     member);
             }
-        } else {
-            long_exists.insert({ annot.long_name, annot });
-            long_args.push_back(annot);
         }
     }
 
@@ -83,16 +86,16 @@ struct arg_name_parser {
             }
             annot = annot(*it, annot.hidden);
         }
-        if (auto it = short_exists.find(annot.short_name); it != short_exists.end()) {
+        if (auto res = short_exists.insert({ annot.short_name, annot }); res.second) {
+            short_args.push_back(annot);
+        } else {
+            auto it = res.first;
             if ((*it).second != annot) {
                 throw std::meta::exception(
                     fmtext::format("conflicting short argument configuration for member '{}': '{}'",
                         identifier_of(member), it->second.short_name),
                     member);
             }
-        } else {
-            short_exists.insert({ annot.short_name, annot });
-            short_args.push_back(annot);
         }
     }
 
@@ -130,6 +133,43 @@ struct positional_parser {
 
 template<>
 inline constexpr std::meta::info find_argument_parser<annotations::positional_annot> = ^^positional_parser;
+
+struct env_default_parser {
+    consteval void do_parse(annotations::env_default_annot annot, std::meta::info member, const parsing_environment& env) {
+        if (annot.env_var == nullptr) {
+            // generate env var name from member name
+            std::string_view name = identifier_of(member);
+            if (name.empty()) {
+                throw std::meta::exception(
+                    "environment variable name cannot be generated from empty member name",
+                    member);
+            }
+            // trim to alphanumeric boundaries
+            auto last_range = std::ranges::find_last_if(name, &ascii::is_alphanumeric<char>);
+            if (last_range.empty()) {
+                throw std::meta::exception(
+                    fmtext::format("environment variable name cannot be generated from member name '{}' without alphanumeric characters", name),
+                    member);
+            }
+            auto first = std::ranges::find_if(name, &ascii::is_alphanumeric<char>);
+            name = std::string_view(first, last_range.begin() + 1);
+            if (annot.env_var_style == style::unspecified) {
+                annot.env_var_style = env.default_env_var_style.naming_style;
+            }
+            annot = annot(casecvt::convert(name, annot.env_var_style));
+        }
+        if (env_exists.insert(annot.env_var).second) {
+            env_defaults.push_back(annot);
+        }
+    }
+
+    std::vector<annotations::env_default_annot> env_defaults;
+private:
+    std::flat_set<std::string_view> env_exists;
+};
+
+template<>
+inline constexpr std::meta::info find_argument_parser<annotations::env_default_annot> = ^^env_default_parser;
 
 struct help_parser {
     consteval void do_parse(annotations::help_annot annot, std::meta::info member, const parsing_environment&) {
@@ -182,6 +222,12 @@ struct combined_argument_annotation_parser : Parsers... {
             extract<void(*)(combined_argument_annotation_parser&, std::meta::info, const parsing_environment&)>(
                 substitute(^^do_parse_helper, { ^^combined_argument_annotation_parser, reflect_constant(annot) })
             )(*this, member, env);
+        }
+        // post parsing checks
+        if (this->positional.has_value() && (!this->short_args.empty() || !this->long_args.empty())) {
+            throw std::meta::exception(
+                "argument cannot be both positional and named",
+                member);
         }
     }
 
