@@ -136,7 +136,7 @@ inline constexpr std::meta::info find_argument_parser<annotations::positional_an
 
 struct env_default_parser {
     consteval void do_parse(annotations::env_default_annot annot, std::meta::info member, const parsing_environment& env) {
-        if (annot.env_var == nullptr) {
+        if (annot.from_member_name()) {
             // generate env var name from member name
             std::string_view name = identifier_of(member);
             if (name.empty()) {

@@ -191,6 +191,10 @@ struct env_default_annot {
         }
         return { .env_var = nullptr, .env_var_style = s };
     }
+
+    bool from_member_name() const noexcept {
+        return env_var == nullptr;
+    }
 };
 
 struct help_annot {
