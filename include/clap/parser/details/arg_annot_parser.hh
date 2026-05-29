@@ -134,6 +134,17 @@ struct positional_parser {
 template<>
 inline constexpr std::meta::info find_argument_parser<annotations::positional_annot> = ^^positional_parser;
 
+struct arg_count_parser {
+    consteval void do_parse(annotations::arg_count_annot annot, std::meta::info member, const parsing_environment&) {
+        // TODO: maybe consider use a unified arg handler model to do all of these
+    }
+
+    std::optional<annotations::arg_count_annot> arg_count;
+};
+
+template<>
+inline constexpr std::meta::info find_argument_parser<annotations::arg_count_annot> = ^^arg_count_parser;
+
 struct env_default_parser {
     consteval void do_parse(annotations::env_default_annot annot, std::meta::info member, const parsing_environment& env) {
         if (annot.from_member_name()) {
@@ -218,20 +229,32 @@ struct combined_argument_annotation_parser : Parsers... {
     using Parsers::do_parse...;
 
     consteval void parse(std::meta::info member) {
+        pre_parsing(member);
         for (auto annot : annotations_of(member)) {
             extract<void(*)(combined_argument_annotation_parser&, std::meta::info, const parsing_environment&)>(
                 substitute(^^do_parse_helper, { ^^combined_argument_annotation_parser, reflect_constant(annot) })
             )(*this, member, env);
         }
-        // post parsing checks
+        post_parsing(member);
+    }
+
+    parsing_environment env;
+
+private:
+    consteval void pre_parsing(std::meta::info member) {
+        // assign default value based on type of member
+        auto type = type_of(member);
+        // TODO
+    }
+
+    consteval void post_parsing(std::meta::info member) {
+        // argument cannot be both positional and named
         if (this->positional.has_value() && (!this->short_args.empty() || !this->long_args.empty())) {
             throw std::meta::exception(
                 "argument cannot be both positional and named",
                 member);
         }
     }
-
-    parsing_environment env;
 };
 
 using argument_annotation_parser = [:[] consteval {
