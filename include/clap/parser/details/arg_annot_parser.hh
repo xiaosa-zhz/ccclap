@@ -4,7 +4,6 @@
 
 #include <meta>
 #include <algorithm>
-#include <ranges>
 #include <optional>
 #include <flat_map>
 #include <flat_set>
@@ -27,9 +26,6 @@ namespace argument_annotation_parsers {
 struct noop_parser {
     consteval void do_parse(...) const noexcept {}
 };
-
-template<typename Annot>
-inline constexpr std::meta::info find_argument_parser = ^^noop_parser;
 
 struct arg_name_parser {
     consteval void do_parse(annotations::long_arg_annot annot, std::meta::info member, const parsing_environment& env) {
@@ -111,13 +107,6 @@ private:
     std::flat_map<std::string_view, annotations::long_arg_annot> long_exists;
 };
 
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::long_arg_annot> = ^^arg_name_parser;
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::short_arg_annot> = ^^arg_name_parser;
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::named_arg_annot> = ^^arg_name_parser;
-
 struct positional_parser {
     consteval void do_parse(annotations::positional_annot annot, std::meta::info member, const parsing_environment&) {
         if (positional.has_value()) {
@@ -131,9 +120,6 @@ struct positional_parser {
     std::optional<annotations::positional_annot> positional;
 };
 
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::positional_annot> = ^^positional_parser;
-
 struct arg_count_parser {
     consteval void do_parse(annotations::arg_count_annot annot, std::meta::info member, const parsing_environment&) {
         // TODO: maybe consider use a unified arg handler model to do all of these
@@ -141,9 +127,6 @@ struct arg_count_parser {
 
     std::optional<annotations::arg_count_annot> arg_count;
 };
-
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::arg_count_annot> = ^^arg_count_parser;
 
 struct env_default_parser {
     consteval void do_parse(annotations::env_default_annot annot, std::meta::info member, const parsing_environment& env) {
@@ -179,9 +162,6 @@ private:
     std::flat_set<std::string_view> env_exists;
 };
 
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::env_default_annot> = ^^env_default_parser;
-
 struct help_parser {
     consteval void do_parse(annotations::help_annot annot, std::meta::info member, const parsing_environment&) {
         if (annot.help_text != annotations::help_annot::default_help) {
@@ -197,9 +177,6 @@ struct help_parser {
     const char* help_text = annotations::help_annot::default_help;
 };
 
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::help_annot> = ^^help_parser;
-
 struct flags_parser {
     consteval void do_parse(annotations::propagated_annot, std::meta::info, const parsing_environment&) noexcept {
         propagated = true;
@@ -211,11 +188,6 @@ struct flags_parser {
     bool propagated = false;
     bool shadows_parent = false;
 };
-
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::propagated_annot> = ^^flags_parser;
-template<>
-inline constexpr std::meta::info find_argument_parser<annotations::shadow_parent_annot> = ^^flags_parser;
 
 } // namespace clap::details::argument_annotation_parsers
 
@@ -258,20 +230,8 @@ private:
 };
 
 using argument_annotation_parser = [:[] consteval {
-    auto parser_types = members_of(^^annotations::argument_annotations, std::meta::access_context::current())
-        | std::views::transform([](std::meta::info annot_type) {
-            return extract<std::meta::info>(
-                substitute(^^argument_annotation_parsers::find_argument_parser, { annot_type })
-            );
-        })
-        | std::ranges::to<std::vector>();
-    // always add a noop_parser, so that unrelated annotations
-    // from other namespaces can be ignored without special handling.
-    parser_types.push_back(^^argument_annotation_parsers::noop_parser);
-    std::ranges::sort(parser_types, [](auto a, auto b) { return type_order(a, b) < 0; });
-    auto [first, last] = std::ranges::unique(parser_types);
-    parser_types.erase(first, last);
-    return substitute(^^combined_argument_annotation_parser, parser_types);
+    return substitute(^^combined_argument_annotation_parser,
+        members_of(^^argument_annotation_parsers, std::meta::access_context::current()));
 }():];
 
 } // namespace clap::details
