@@ -133,7 +133,7 @@ private:
 };
 
 template<typename... Args>
-using format_cstring = std::type_identity_t<basic_format_cstring<char, Args...>>;
+using format_cstring = [:^^basic_format_cstring<char, Args...>:];
 
 template<typename... Args>
 constexpr std::string format(format_cstring<Args...> fmt, Args&&... args) {
