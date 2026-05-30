@@ -3,6 +3,7 @@
 #include <clap/util/cstring.hh>
 #include <clap/util/ascii.hh>
 #include <clap/util/fmtext.hh>
+#include <clap/util/enum.hh>
 #include <clap/parser/token.hh>
 #include <clap/parser/parser.hh>
 #include <string>
@@ -215,6 +216,25 @@ int main(int argc, char** argv) {
     fmtext::println("digit_value('G'): {}", clap::ascii::digit_value('G'));
 
     fmtext::plural_println("There is {} file, {}", "There are {} files, {}", fmtext::plural(2uz), 2uz);
+
+    // --- clap::enum_to_string / string_to_enum ---
+    fmtext::println("");
+    static_assert(clap::enum_type<clap::style>);
+    static_assert(!clap::enum_type<int>);
+
+    // enum_to_string: 每个枚举值应与其标识符相符
+    fmtext::println("enum_to_string(style::unspecified):     {}", clap::enum_to_string(style::unspecified).value());
+    fmtext::println("enum_to_string(style::verbatim):        {}", clap::enum_to_string(style::verbatim).value());
+    fmtext::println("enum_to_string(style::kebab):           {}", clap::enum_to_string(style::kebab).value());
+    fmtext::println("enum_to_string(style::snake):           {}", clap::enum_to_string(style::snake).value());
+    fmtext::println("enum_to_string(style::screaming_snake): {}", clap::enum_to_string(style::screaming_snake).value());
+    fmtext::println("enum_to_string(style::camel):           {}", clap::enum_to_string(style::camel).value());
+    fmtext::println("enum_to_string(style::pascal):          {}", clap::enum_to_string(style::pascal).value());
+
+    // string_to_enum: 正向查找与无效输入
+    fmtext::println("string_to_enum<style>(\"kebab\") == style::kebab:           {}", clap::string_to_enum<style>("kebab") == style::kebab);
+    fmtext::println("string_to_enum<style>(\"screaming_snake\") == screaming_snake: {}", clap::string_to_enum<style>("screaming_snake") == style::screaming_snake);
+    fmtext::println("string_to_enum<style>(\"INVALID\") has_value:               {}", clap::string_to_enum<style>("INVALID").has_value());
 
     return 0;
 }
