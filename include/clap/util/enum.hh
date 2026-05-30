@@ -23,8 +23,9 @@ using enum_string_lut = std::pair<std::array<Key, N>, std::array<Value, N>>;
 
 template<enum_type Enum>
 consteval auto enum_to_string_lut() {
-    enum_string_lut<Enum, cstring_view, enumerators_of(^^Enum).size()> lut;
-    for (auto&& [e, key, value] : std::views::zip(enumerators_of(^^Enum), lut.first, lut.second)) {
+    constexpr auto enumerators = std::define_static_array(enumerators_of(^^Enum));
+    enum_string_lut<Enum, cstring_view, enumerators.size()> lut;
+    for (auto&& [e, key, value] : std::views::zip(enumerators, lut.first, lut.second)) {
         auto name = identifier_of(e);
         key = extract<Enum>(e);
         value = { name.data(), name.size() };
@@ -36,8 +37,9 @@ consteval auto enum_to_string_lut() {
 
 template<enum_type Enum>
 consteval auto string_to_enum_lut() {
-    enum_string_lut<cstring_view, Enum, enumerators_of(^^Enum).size()> lut;
-    for (auto&& [e, key, value] : std::views::zip(enumerators_of(^^Enum), lut.first, lut.second)) {
+    constexpr auto enumerators = std::define_static_array(enumerators_of(^^Enum));
+    enum_string_lut<cstring_view, Enum, enumerators.size()> lut;
+    for (auto&& [e, key, value] : std::views::zip(enumerators, lut.first, lut.second)) {
         auto name = identifier_of(e);
         key = { name.data(), name.size() };
         value = extract<Enum>(e);
