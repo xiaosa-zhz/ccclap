@@ -120,12 +120,22 @@ struct positional_parser {
     std::optional<annotations::positional_annot> positional;
 };
 
-struct arg_count_parser {
+// struct arg_count_parser {
+//     consteval void do_parse(annotations::arg_count_annot annot, std::meta::info member, const parsing_environment&) {
+//         // TODO: maybe consider use a unified arg handler model to do all of these
+//     }
+
+//     std::optional<annotations::arg_count_annot> arg_count;
+// };
+
+struct arg_action_parser {
+    
+
     consteval void do_parse(annotations::arg_count_annot annot, std::meta::info member, const parsing_environment&) {
-        // TODO: maybe consider use a unified arg handler model to do all of these
+        // TODO
     }
 
-    std::optional<annotations::arg_count_annot> arg_count;
+    std::meta::info action;
 };
 
 struct env_default_parser {
