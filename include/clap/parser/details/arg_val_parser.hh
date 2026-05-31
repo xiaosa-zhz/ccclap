@@ -16,18 +16,22 @@ struct lazy_cell {
     template<typename F>
     struct type {
         F func;
-        cstring_view str;
 
         operator T() const {
-            return std::invoke_r<T>(func, str);
+            return std::invoke_r<T>(func);
         }
     };
 };
+
+consteval bool is_specialization_of(std::meta::info type, std::meta::info template_info) {
+    return has_template_arguments(type) && template_of(type) == template_info;
+}
 
 struct use_custom_parser_tag {};
 
 template<typename T, auto Func>
 struct custom_constant_parser {
+    using type = T;
     static constexpr T parse(cstring_view s) {
         return std::invoke_r<T>(Func, s);
     }
@@ -35,6 +39,7 @@ struct custom_constant_parser {
 
 template<typename T, std::default_initializable Func>
 struct custom_type_parser {
+    using type = T;
     static constexpr T parse(cstring_view s) {
         const Func parser;
         return std::invoke_r<T>(parser, s);
@@ -43,11 +48,12 @@ struct custom_type_parser {
 
 template<typename NestedParser>
 struct optional_parser {
-    using type = typename NestedParser::type;
-
-    static std::optional<type> parse(cstring_view s) {
+    using type = NestedParser::type;
+    static constexpr std::optional<type> parse(cstring_view s) {
         try {
-            return std::optional<type>(std::in_place, NestedParser::parse(s));
+            return std::optional<type>(std::in_place, lazy_cell<type>::template type([s] {
+                return NestedParser::parse(s);
+            }));
         } catch (...) {
             return std::nullopt;
         }
@@ -75,10 +81,9 @@ consteval std::meta::info parser_dispatcher(std::meta::info member, R&& addition
     // container types
     if (is_specialization_of(type, ^^std::optional)) {
         auto nested = parser_dispatcher(member, inputs);
-        if (nested) {
-            return substitute(^^optional_parser, { nested });
-        }
+        return substitute(^^optional_parser, { nested });
     }
+    return {}; // TODO
 }
 
 } // namespace clap::details
