@@ -20,10 +20,8 @@ struct lazy_cell {
     template<typename F>
     struct type {
         F func;
-
-        operator T() const {
-            return std::invoke_r<T>(func);
-        }
+        T get() const { return std::invoke_r<T>(func); }
+        operator T() const { return get(); }
     };
 };
 
@@ -126,6 +124,11 @@ consteval std::meta::info parser_dispatcher(std::meta::info type, R&& additional
         return {};
     }
     return {}; // TODO
+}
+
+template<typename Target, typename RawInputs>
+consteval void parse_arg_val(Target& target, RawInputs&& raw_inputs) {
+
 }
 
 } // namespace clap::details
