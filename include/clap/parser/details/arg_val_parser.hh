@@ -9,6 +9,10 @@
 #include <clap/util/cstring.hh>
 #include <utility>
 
+// TODO: redesign arg parser by using a two steps parsing model:
+// 1. (map) convert from cstring_view to a intermediate object target type
+// 2. (reduce) collect all intermediate objects into final argument value
+
 namespace clap::details {
 
 template<typename T>
@@ -25,6 +29,46 @@ struct lazy_cell {
 
 consteval bool is_specialization_of(std::meta::info type, std::meta::info template_info) {
     return has_template_arguments(type) && template_of(type) == template_info;
+}
+
+consteval bool is_std_optional(std::meta::info type) {
+    return is_specialization_of(type, ^^std::optional);
+}
+
+template<typename Container>
+concept eager_appendable = requires {
+    typename Container::value_type;
+    requires requires (Container c, typename Container::value_type v) {
+        c.push_back(std::move(v));
+    };
+};
+
+consteval bool is_eager_appendable_container(std::meta::info type) {
+    return extract<bool>(substitute(^^eager_appendable, { type }));
+}
+
+template<typename T>
+struct lazy_callable_dummy {
+    operator T() const {}
+};
+
+template<typename Container>
+concept lazy_appendable = requires {
+    typename Container::value_type;
+    requires requires (Container c, lazy_callable_dummy<typename Container::value_type> v) {
+        c.emplace_back(std::move(v));
+    };
+};
+
+consteval bool is_lazy_appendable_container(std::meta::info type) {
+    return extract<bool>(substitute(^^lazy_appendable, { type }));
+}
+
+template<typename Container>
+concept appendable = eager_appendable<Container> || lazy_appendable<Container>;
+
+consteval bool is_appendable_container(std::meta::info type) {
+    return extract<bool>(substitute(^^appendable, { type }));
 }
 
 struct use_custom_parser_tag {};
@@ -50,20 +94,15 @@ template<typename NestedParser>
 struct optional_parser {
     using type = NestedParser::type;
     static constexpr std::optional<type> parse(cstring_view s) {
-        try {
-            return std::optional<type>(std::in_place, lazy_cell<type>::template type([s] {
-                return NestedParser::parse(s);
-            }));
-        } catch (...) {
-            return std::nullopt;
-        }
+        return std::optional<type>(std::in_place, lazy_cell<type>::template type([s] {
+            return NestedParser::parse(s);
+        }));
     }
 };
 
 template<std::meta::reflection_range R = std::initializer_list<std::meta::info>>
-consteval std::meta::info parser_dispatcher(std::meta::info member, R&& additional_inputs) {
+consteval std::meta::info parser_dispatcher(std::meta::info type, R&& additional_inputs) {
     std::vector<std::meta::info> inputs(std::from_range, std::forward<R>(additional_inputs));
-    auto type = type_of(member);
     if (inputs.size() >= 2) {
         // custom parser top priority
         auto first = inputs[0];
@@ -80,8 +119,11 @@ consteval std::meta::info parser_dispatcher(std::meta::info member, R&& addition
     }
     // container types
     if (is_specialization_of(type, ^^std::optional)) {
-        auto nested = parser_dispatcher(member, inputs);
+        auto nested = parser_dispatcher(type, inputs);
         return substitute(^^optional_parser, { nested });
+    } else if (is_appendable_container(type)) {
+        // TODO
+        return {};
     }
     return {}; // TODO
 }

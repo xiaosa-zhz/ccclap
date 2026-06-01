@@ -116,6 +116,8 @@ constexpr auto help_text = [] consteval {
     return parser.help_text;
 }();
 
+static_assert(clap::details::is_appendable_container(^^std::vector<int>));
+
 int main(int argc, char** argv) {
     parse(argc, argv);
     lut_test();
