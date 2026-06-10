@@ -15,6 +15,40 @@
 
 namespace clap::details {
 
+template<typename M>
+concept mapper = std::is_void_v<M> || requires (const M& m, const cstring_view& s) {
+    m.parse(s);
+};
+
+template<typename M>
+concept void_mapper = mapper<M> && requires (const M& m, const cstring_view& s) {
+    requires std::is_void_v<M> || std::is_void_v<decltype(m.parse(s))>;
+};
+
+template<typename R, typename FinalResultType, typename M>
+concept reducer_for = requires (R& r, const M& m, const cstring_view& s) {
+    requires mapper<M>;
+    requires std::constructible_from<R, FinalResultType&>;
+    requires [] consteval {
+        if constexpr (void_mapper<M>) {
+            return requires { r.collect(); };
+        } else {
+            return requires { r.collect(m.parse(s)); };
+        }
+    }();
+};
+
+template<typename Mapper, typename Reducer>
+class arg_val_parser
+{
+public:
+    using mapper_type = Mapper;
+    using reducer_type = Reducer;
+private:
+    mapper_type mapper;
+    reducer_type reducer;
+};
+
 template<typename T>
 struct lazy_cell {
     template<typename F>
