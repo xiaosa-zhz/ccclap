@@ -194,9 +194,13 @@ struct flags_parser {
     consteval void do_parse(annotations::shadow_parent_annot, std::meta::info, const parsing_environment&) noexcept {
         shadows_parent = true;
     }
+    consteval void do_parse(annotations::ignore_case_annot, std::meta::info, const parsing_environment&) noexcept {
+        ignore_case = true;
+    }
 
     bool propagated = false;
     bool shadows_parent = false;
+    bool ignore_case = false;
 };
 
 } // namespace clap::details::argument_annotation_parsers
