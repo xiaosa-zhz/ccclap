@@ -239,10 +239,10 @@ private:
     }
 };
 
-using argument_annotation_parser = [:[] consteval {
-    return substitute(^^combined_argument_annotation_parser,
-        members_of(^^argument_annotation_parsers, std::meta::access_context::current()));
-}():];
+using argument_annotation_parser = [:
+    substitute(^^combined_argument_annotation_parser,
+        members_of(^^argument_annotation_parsers, std::meta::access_context::current()))
+:];
 
 } // namespace clap::details
 

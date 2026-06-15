@@ -215,6 +215,8 @@ struct propagated_annot {};
 
 struct shadow_parent_annot {};
 
+struct ignore_case_annot {};
+
 } // namespace clap::annotations::argument_annotations
 
 inline namespace command_annotations {
@@ -335,6 +337,10 @@ inline constexpr annotations::propagated_annot propagated{};
 
 // Mark a argument can shadow argument with the same name in parent command.
 inline constexpr annotations::shadow_parent_annot shadow_parent{};
+
+// Mark an argument to ignore case when parsing. For example, with this annotation,
+// an argument named 'foo' can be parsed from '--foo', '--FOO', '--Foo', etc.
+inline constexpr annotations::ignore_case_annot ignore_case{};
 
 // If subcommand type is not annotated with this annotation, it behaves like
 // annotated with `[[=subcommand_name(style::unspecified)]]` by default, which means
