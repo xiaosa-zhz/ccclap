@@ -20,6 +20,16 @@ using style = casecvt::style;
 
 namespace annotations {
 
+struct ignore_case_annot {
+    static consteval ignore_case_annot operator()(
+            bool ignore = true,
+            std::source_location loc = std::source_location::current()) {
+        return { .ignore_case = ignore };
+    }
+
+    bool ignore_case = true;
+};
+
 inline namespace argument_annotations {
 
 struct short_arg_annot {
@@ -215,8 +225,6 @@ struct propagated_annot {};
 
 struct shadow_parent_annot {};
 
-struct ignore_case_annot {};
-
 } // namespace clap::annotations::argument_annotations
 
 inline namespace command_annotations {
@@ -278,6 +286,8 @@ struct env_var_naming_style_annot {
     }
 };
 
+struct all_ignore_case_annot {};
+
 } // namespace clap::annotations::command_annotations
 
 // Tag type to indicate a subcommands variant.
@@ -335,11 +345,13 @@ inline constexpr annotations::help_annot help{};
 // is annotated with `[[=shadow_parent]]` to explicitly allow shadowing.
 inline constexpr annotations::propagated_annot propagated{};
 
-// Mark a argument can shadow argument with the same name in parent command.
+// Mark an argument can shadow argument with the same name in parent command.
 inline constexpr annotations::shadow_parent_annot shadow_parent{};
 
-// Mark an argument to ignore case when parsing. For example, with this annotation,
-// an argument named 'foo' can be parsed from '--foo', '--FOO', '--Foo', etc.
+// Mark an subcommand or argument whether to ignore case when parsing.
+// For example, with this annotation, an argument named 'foo' can be parsed from
+// '--foo', '--FOO', '--Foo', etc.
+// Or a subcommand named 'bar' can be parsed from 'bar', 'BAR', 'Bar', etc.
 inline constexpr annotations::ignore_case_annot ignore_case{};
 
 // If subcommand type is not annotated with this annotation, it behaves like
@@ -370,6 +382,9 @@ inline constexpr annotations::arg_naming_style_annot arg_style = {};
 // but it can be changed to snake_case, camelCase, etc.
 // using this annotation at the command level.
 inline constexpr annotations::env_var_naming_style_annot env_var_style = {};
+
+// Mark a command to ignore case when parsing subcommand names and its arguments.
+inline constexpr annotations::all_ignore_case_annot all_ignore_case{};
 
 } // namespace clap
 

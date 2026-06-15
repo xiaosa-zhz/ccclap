@@ -18,6 +18,7 @@ namespace clap::details {
 struct parsing_environment {
     annotations::arg_naming_style_annot default_arg_style = {};
     annotations::env_var_naming_style_annot default_env_var_style = {};
+    bool all_ignore_case = false;
 };
 
 namespace argument_annotation_parsers {
@@ -129,8 +130,6 @@ struct positional_parser {
 // };
 
 struct arg_action_parser {
-    
-
     consteval void do_parse(annotations::arg_count_annot annot, std::meta::info member, const parsing_environment&) {
         // TODO
     }
@@ -194,8 +193,8 @@ struct flags_parser {
     consteval void do_parse(annotations::shadow_parent_annot, std::meta::info, const parsing_environment&) noexcept {
         shadows_parent = true;
     }
-    consteval void do_parse(annotations::ignore_case_annot, std::meta::info, const parsing_environment&) noexcept {
-        ignore_case = true;
+    consteval void do_parse(annotations::ignore_case_annot annot, std::meta::info, const parsing_environment&) noexcept {
+        ignore_case = annot.ignore_case;
     }
 
     bool propagated = false;
@@ -215,25 +214,27 @@ struct combined_argument_annotation_parser : Parsers... {
     using Parsers::do_parse...;
 
     consteval void parse(std::meta::info member) {
-        pre_parsing(member);
+        pre_parsing(member, env);
         for (auto annot : annotations_of(member)) {
             extract<void(*)(combined_argument_annotation_parser&, std::meta::info, const parsing_environment&)>(
                 substitute(^^do_parse_helper, { ^^combined_argument_annotation_parser, reflect_constant(annot) })
             )(*this, member, env);
         }
-        post_parsing(member);
+        post_parsing(member, env);
     }
 
     parsing_environment env;
 
 private:
-    consteval void pre_parsing(std::meta::info member) {
+    consteval void pre_parsing(std::meta::info member, const parsing_environment& env) {
         // assign default value based on type of member
         auto type = type_of(member);
         // TODO
+        // apply default settings from env
+        this->ignore_case = env.all_ignore_case;
     }
 
-    consteval void post_parsing(std::meta::info member) {
+    consteval void post_parsing(std::meta::info member, const parsing_environment& env) {
         // argument cannot be both positional and named
         if (this->positional.has_value() && (!this->short_args.empty() || !this->long_args.empty())) {
             throw std::meta::exception(
