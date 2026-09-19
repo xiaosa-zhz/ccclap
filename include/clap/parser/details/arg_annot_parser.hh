@@ -204,21 +204,22 @@ struct flags_parser {
 
 } // namespace clap::details::argument_annotation_parsers
 
-template<typename Parser, std::meta::info Annot>
-consteval void do_parse_helper(Parser& parser, std::meta::info member, const parsing_environment& env) {
-    parser.do_parse([:constant_of(Annot):], member, env);
-}
-
 template<typename... Parsers>
 struct combined_argument_annotation_parser : Parsers... {
     using Parsers::do_parse...;
 
+    template<std::meta::info Annot>
+    consteval void call_do_parse(std::meta::info member, const parsing_environment& env) {
+        this->do_parse([:constant_of(Annot):], member, env);
+    }
+
     consteval void parse(std::meta::info member) {
         pre_parsing(member, env);
+        using this_type = combined_argument_annotation_parser;
         for (auto annot : annotations_of(member)) {
-            extract<void(*)(combined_argument_annotation_parser&, std::meta::info, const parsing_environment&)>(
-                substitute(^^do_parse_helper, { ^^combined_argument_annotation_parser, reflect_constant(annot) })
-            )(*this, member, env);
+            (this->*extract<void(this_type::*)(std::meta::info, const parsing_environment&)>(
+                substitute(^^this_type::call_do_parse, { reflect_constant(annot) })
+            ))(member, env);
         }
         post_parsing(member, env);
     }
