@@ -208,11 +208,6 @@ template<typename... Parsers>
 struct combined_argument_annotation_parser : Parsers... {
     using Parsers::do_parse...;
 
-    template<std::meta::info Annot>
-    consteval void call_do_parse(std::meta::info member, const parsing_environment& env) {
-        this->do_parse([:constant_of(Annot):], member, env);
-    }
-
     consteval void parse(std::meta::info member) {
         pre_parsing(member, env);
         using this_type = combined_argument_annotation_parser;
@@ -227,6 +222,11 @@ struct combined_argument_annotation_parser : Parsers... {
     parsing_environment env;
 
 private:
+    template<std::meta::info Annot>
+    consteval void call_do_parse(std::meta::info member, const parsing_environment& env) {
+        this->do_parse([:constant_of(Annot):], member, env);
+    }
+
     consteval void pre_parsing(std::meta::info member, const parsing_environment& env) {
         // assign default value based on type of member
         auto type = type_of(member);
