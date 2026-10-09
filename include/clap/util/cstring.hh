@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <iterator>
+#include <ranges>
 
 #include <fmt/core.h>
 
@@ -14,7 +16,7 @@
 
 namespace clap {
 
-template <typename T>
+template <class T>
 concept cstring_like = requires(const T& t) {
     { t.c_str() } -> std::same_as<const typename T::value_type*>;
 };
@@ -22,19 +24,19 @@ concept cstring_like = requires(const T& t) {
 template <class CharT, class Traits = std::char_traits<CharT>>
 class basic_cstring_view {
 public:
-    using traits_type               = Traits;
-    using value_type                = CharT;
-    using pointer                   = value_type*;
-    using const_pointer             = const value_type*;
-    using reference                 = value_type&;
-    using const_reference           = const value_type&;
-    using const_iterator            = const CharT*;
-    using iterator                  = const_iterator;
-    using const_reverse_iterator    = std::reverse_iterator<const_iterator>;
-    using reverse_iterator          = const_reverse_iterator;
-    using size_type                 = std::size_t;
-    using difference_type           = std::ptrdiff_t;
-    using string_view_type          = std::basic_string_view<CharT, Traits>;
+    using traits_type            = Traits;
+    using value_type             = CharT;
+    using pointer                = value_type*;
+    using const_pointer          = const value_type*;
+    using reference              = value_type&;
+    using const_reference        = const value_type&;
+    using const_iterator         = const CharT*;
+    using iterator               = const_iterator;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+    using reverse_iterator       = const_reverse_iterator;
+    using size_type              = std::size_t;
+    using difference_type        = std::ptrdiff_t;
+    using string_view_type       = std::basic_string_view<CharT, Traits>;
 
     static constexpr size_type npos = size_type(-1);
 
@@ -46,21 +48,40 @@ public:
         data_ = std::data(empty_cstr);
     }
 
-    constexpr basic_cstring_view(const basic_cstring_view&) noexcept            = default;
+    constexpr basic_cstring_view(const basic_cstring_view&)            noexcept = default;
     constexpr basic_cstring_view& operator=(const basic_cstring_view&) noexcept = default;
 
     constexpr basic_cstring_view(const CharT* str)
         pre (str != nullptr)
-        : basic_cstring_view(str, Traits::length(str)) {}
+        : basic_cstring_view(str, Traits::length(str))
+    {}
 
     constexpr basic_cstring_view(const CharT* str, size_type len)
         pre (str[len] == CharT())
-        : data_(str), size_(len) {}
+        : data_(str), size_(len)
+    {}
 
     constexpr basic_cstring_view(std::nullptr_t) = delete;
 
-    constexpr basic_cstring_view(const cstring_like auto& r)
-        : basic_cstring_view(r.c_str(), r.size()) {}
+    template <cstring_like CStrLike>
+        requires std::same_as<typename CStrLike::value_type, value_type>
+              && std::ranges::sized_range<CStrLike>
+    constexpr basic_cstring_view(const CStrLike& r)
+        : basic_cstring_view(r.c_str(), r.size())
+    {}
+
+    template <cstring_like CStrLike>
+        requires std::same_as<typename CStrLike::value_type, value_type>
+              && (not std::ranges::sized_range<CStrLike>)
+    constexpr basic_cstring_view(const CStrLike& r)
+        : basic_cstring_view(r.c_str())
+    {}
+
+    template <std::contiguous_iterator It, std::sentinel_for<It> Sent>
+        requires std::same_as<std::iter_value_t<It>, value_type>
+    constexpr basic_cstring_view(It first, Sent last)
+        : basic_cstring_view(std::to_address(first), std::ranges::distance(first, last))
+    {}
 
     [[nodiscard]] constexpr const_iterator         begin()   const noexcept { return data_; }
     [[nodiscard]] constexpr const_iterator         end()     const noexcept { return data_ + size_; }
@@ -101,8 +122,8 @@ public:
         return data_[size_ - 1];
     }
 
-    [[nodiscard]] constexpr const_pointer data()  const noexcept { return data_; }
-    [[nodiscard]] constexpr const_pointer c_str() const noexcept { return data_; }
+    [[nodiscard]] constexpr const_pointer data()        const noexcept { return data_; }
+    [[nodiscard]] constexpr const_pointer c_str()       const noexcept { return data_; }
     [[nodiscard]] constexpr operator string_view_type() const noexcept { return to_sv(); }
 
     constexpr void remove_prefix(size_type n)
@@ -319,8 +340,8 @@ private:
     size_type     size_;
 };
 
-template <class It, class End>
-basic_cstring_view(It, End) -> basic_cstring_view<std::iter_value_t<It>>;
+template <std::contiguous_iterator It, std::sentinel_for<It> Sent>
+basic_cstring_view(It, Sent) -> basic_cstring_view<std::iter_value_t<It>>;
 
 template <cstring_like R>
 basic_cstring_view(R&&) -> basic_cstring_view<typename std::remove_cvref_t<R>::value_type>;
