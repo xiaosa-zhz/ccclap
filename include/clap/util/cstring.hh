@@ -95,7 +95,7 @@ public:
     [[nodiscard]] constexpr size_type size()      const noexcept { return size_; }
     [[nodiscard]] constexpr size_type length()    const noexcept { return size_; }
     [[nodiscard]] static constexpr size_type max_size() noexcept { return string_view_type{}.max_size() - 1; }
-    [[nodiscard]] constexpr bool empty() const noexcept { return size_ == 0; }
+    [[nodiscard]] constexpr bool empty()          const noexcept { return size_ == 0; }
 
     [[nodiscard]] constexpr const_reference operator[](size_type pos) const
         pre (pos <= size_)
