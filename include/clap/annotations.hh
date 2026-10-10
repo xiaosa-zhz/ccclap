@@ -11,7 +11,7 @@
 #include <variant>
 
 #include <clap/util/ascii.hh>
-#include <clap/util/fmtext.hh>
+#include <clap/util/i18n.hh>
 #include <clap/util/casecvt.hh>
 
 namespace clap {
