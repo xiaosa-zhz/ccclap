@@ -8,8 +8,7 @@
 #include <string_view>
 #include <iterator>
 #include <ranges>
-
-#include <fmt/core.h>
+#include <format>
 
 // cstring_view: a string view that guarantees null-termination at data()[size()]
 // Copy from P3655
@@ -106,7 +105,7 @@ public:
     [[nodiscard]] constexpr const_reference at(size_type pos) const {
         if (pos > size_) {
             throw std::out_of_range(
-                fmt::format("basic_cstring_view::at: pos ({}) > size() {}", pos, size_));
+                std::format("basic_cstring_view::at: pos ({}) > size() {}", pos, size_));
         }
         return data_[pos];
     }
@@ -377,13 +376,13 @@ using wcstring_view   = basic_cstring_view<wchar_t>;
 } // namespace clap
 
 template <class CharT, class Traits>
-struct fmt::formatter<clap::basic_cstring_view<CharT, Traits>, CharT>
-    : fmt::formatter<fmt::basic_string_view<CharT>, CharT> {
+struct std::formatter<clap::basic_cstring_view<CharT, Traits>, CharT>
+    : std::formatter<std::basic_string_view<CharT, Traits>, CharT>
+{
     template <typename FormatContext>
-    constexpr auto format(const clap::basic_cstring_view<CharT, Traits>& csv,
-                              FormatContext& ctx) const {
-        return fmt::formatter<fmt::basic_string_view<CharT>, CharT>::format(
-            fmt::basic_string_view<CharT>(csv.data(), csv.size()), ctx);
+    constexpr auto format(clap::basic_cstring_view<CharT, Traits> csv, FormatContext& ctx) const {
+        using base = std::formatter<std::basic_string_view<CharT, Traits>, CharT>;
+        return base::format(std::basic_string_view<CharT, Traits>(csv.data(), csv.size()), ctx);
     }
 };
 

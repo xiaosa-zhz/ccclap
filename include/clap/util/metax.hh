@@ -3,13 +3,9 @@
 #define CCCLAP_UTIL_METAX_H 1
 
 #include <meta>
-#include <concepts>
-#include <type_traits>
+#include <initializer_list>
 #include <span>
-#include <vector>
-#include <string_view>
 #include <ranges>
-#include <inplace_vector>
 
 #include <clap/util/cstring.hh>
 
@@ -25,8 +21,15 @@ inline constexpr std::pair<const T*, std::size_t> span_pair_val = { std::ranges:
 
 } // namespace clap::metax::details
 
+inline constexpr std::meta::info null = {};
+
 consteval bool is_specialization_of(std::meta::info type, std::meta::info template_info) {
     return has_template_arguments(type) && template_of(type) == template_info;
+}
+
+template<typename T, std::meta::reflection_range R = std::initializer_list<std::meta::info>>
+consteval T substitute_value(std::meta::info template_info, R&& args) {
+    return extract<T>(substitute(template_info, std::forward<R>(args)));
 }
 
 // Convert range of string-like objects to a static string array (std::span<const cstring_view<CharT>>)
@@ -42,8 +45,8 @@ consteval std::span<const std::ranges::range_value_t<R>> define_static_string_ar
         args.push_back(std::meta::reflect_constant_string(elem));
     }
     const auto val_info = substitute(^^details::sv_val, args);
-    const auto pair = extract<std::pair<const sv_type*, std::size_t>>(
-        substitute(^^details::span_pair_val, { sv_info, val_info }));
+    const auto pair = substitute_value<std::pair<const sv_type*, std::size_t>>(
+        ^^details::span_pair_val, { sv_info, val_info });
     return { pair.first, pair.second };
 }
 

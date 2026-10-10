@@ -1,5 +1,5 @@
 add_rules("mode.debug", "mode.release")
-add_requires("fmt", "nowide_standalone")
+add_requires("nowide_standalone")
 set_encodings("utf-8")
 
 target("ccclap")
@@ -10,4 +10,4 @@ target("ccclap")
     add_ldflags("-fcontracts", {force = true})
     add_includedirs("include")
     add_files("src/*.cc")
-    add_packages("fmt", "nowide_standalone")
+    add_packages("nowide_standalone")

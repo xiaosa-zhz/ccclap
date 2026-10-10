@@ -84,7 +84,7 @@ consteval std::meta::info find_subcommands(std::meta::info type) {
         if (has_template_arguments(type)
             && template_of(type) == ^^std::variant
             && decay(template_arguments_of(type)[0]) == ^^annotations::subcommand_tag) {
-            if (subcommands_member != std::meta::info{}) {
+            if (subcommands_member != metax::null) {
                 throw std::meta::exception(
                     "multiple subcommands members found, only one is allowed",
                     type);
@@ -116,7 +116,7 @@ public:
         if constexpr (enable_multicall) {
             [] consteval {
                 auto subcommands = details::find_subcommands(^^CMD);
-                if (subcommands == std::meta::info{}) {
+                if (subcommands == metax::null) {
                     throw std::meta::exception("multicall command must have a subcommands member", ^^CMD);
                 }
             }();

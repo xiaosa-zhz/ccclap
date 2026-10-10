@@ -12,7 +12,6 @@
 #include <vector>
 #include <ranges>
 #include <bit>
-#include <fmt/ranges.h>
 #include <nowide/args.hpp>
 
 using namespace clap;
@@ -38,8 +37,16 @@ consteval void test_exec_coding_utf8() {
 struct cli_arg {
     std::string_view original;
     std::string_view value;
-    friend constexpr std::string_view format_as(const cli_arg& arg) noexcept {
-        return arg.value;
+};
+
+template<>
+struct std::formatter<cli_arg, char>
+    : std::formatter<std::string_view, char>
+{
+    template <typename FormatContext>
+    constexpr auto format(const cli_arg& arg, FormatContext& ctx) const {
+        using base = std::formatter<std::string_view, char>;
+        return base::format(arg.value, ctx);
     }
 };
 
