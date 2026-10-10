@@ -157,8 +157,8 @@ public:
     using mapped_container_type  = std::span<const mapped_type>;
 
     constexpr lookup_table(key_container_type keys, mapped_container_type values, key_compare comp = {}) noexcept
-        pre (std::ranges::is_sorted(keys, comp))
         pre (std::ranges::size(keys) == std::ranges::size(values))
+        pre (std::ranges::is_sorted(keys, comp))
         pre (std::ranges::adjacent_find(keys, std::not_fn(comp)) == keys.end())
         : comp_(comp), keys_(keys), values_(values)
     {}
@@ -188,38 +188,28 @@ public:
 
     template<typename K>
         requires (not std::same_as<K, key_type>) && transparent_key<K>
-    constexpr const mapped_type& at(const K& key) const {
-        auto it = find(key);
-        if (it == end()) {
-            throw std::out_of_range("key not found");
+    constexpr std::optional<const mapped_type&> lookup(const K& key) const noexcept {
+        if (auto it = find(key); it != end()) {
+            return it->second;
         }
-        return it->second;
+        return std::nullopt;
     }
 
-    constexpr const mapped_type& at(const key_type& key) const {
-        auto it = find(key);
-        if (it == end()) {
-            throw std::out_of_range("key not found");
+    constexpr std::optional<const mapped_type&> lookup(const key_type& key) const noexcept {
+        if (auto it = find(key); it != end()) {
+            return it->second;
         }
-        return it->second;
+        return std::nullopt;
     }
 
     template<typename K>
         requires (not std::same_as<K, key_type>) && transparent_key<K>
-    constexpr std::optional<const mapped_type&> lookup(const K& key) const noexcept {
-        auto it = find(key);
-        if (it == end()) {
-            return std::nullopt;
-        }
-        return (*it).second;
+    constexpr const mapped_type& at(const K& key) const {
+        return *(lookup(key).or_else(&throw_out_of_range));
     }
 
-    constexpr std::optional<const mapped_type&> lookup(const key_type& key) const noexcept {
-        auto it = find(key);
-        if (it == end()) {
-            return std::nullopt;
-        }
-        return (*it).second;
+    constexpr const mapped_type& at(const key_type& key) const {
+        return *(lookup(key).or_else(&throw_out_of_range));
     }
 
 private:
@@ -230,6 +220,10 @@ private:
             return iterator(std::to_address(it), values_.data() + std::ranges::distance(keys_.begin(), it));
         }
         return end();
+    }
+
+    [[noreturn]] static constexpr std::optional<const mapped_type&> throw_out_of_range() {
+        throw std::out_of_range("key not found");
     }
 
     [[no_unique_address]] key_compare comp_ = {};
