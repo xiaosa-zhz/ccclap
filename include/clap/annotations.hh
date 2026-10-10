@@ -42,7 +42,7 @@ struct short_arg_annot {
             std::source_location loc = std::source_location::current()) {
         if (!ascii::is_alphanumeric(name)) {
             throw std::meta::exception(
-                fmtext::format("short argument name must be alphanumeric, got '{}'(0x{:x})",
+                std::format("short argument name must be alphanumeric, got '{}'(0x{:x})",
                     name, static_cast<std::size_t>(name)),
                 std::meta::reflect_constant(name), loc);
         }
@@ -163,7 +163,7 @@ struct arg_count_annot {
             std::source_location loc = std::source_location::current()) {
         if (min > max) {
             throw std::meta::exception(
-                fmtext::format("min cannot be greater than max ({} > {})", min, max),
+                std::format("min cannot be greater than max ({} > {})", min, max),
                 ^^arg_count_annot, loc);
         }
         return { .min = min, .max = max };

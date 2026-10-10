@@ -42,7 +42,7 @@ struct arg_name_parser {
             auto last_range = std::ranges::find_last_if(name, &ascii::is_alphanumeric<char>);
             if (last_range.empty()) {
                 throw std::meta::exception(
-                    fmtext::format("long argument name cannot be generated from member name '{}' without alphanumeric characters", name),
+                    std::format("long argument name cannot be generated from member name '{}' without alphanumeric characters", name),
                     member);
             }
             auto first = std::ranges::find_if(name, &ascii::is_alphanumeric<char>);
@@ -58,7 +58,7 @@ struct arg_name_parser {
             auto it = res.first;
             if ((*it).second != annot) {
                 throw std::meta::exception(
-                    fmtext::format("conflicting long argument configuration for member '{}': '{}'",
+                    std::format("conflicting long argument configuration for member '{}': '{}'",
                         identifier_of(member), it->second.long_name),
                     member);
             }
@@ -78,7 +78,7 @@ struct arg_name_parser {
             auto it = std::ranges::find_if(name, &ascii::is_alphanumeric<char>);
             if (it == name.end()) {
                 throw std::meta::exception(
-                    fmtext::format("short argument name cannot be generated from member name '{}' without alphanumeric characters", name),
+                    std::format("short argument name cannot be generated from member name '{}' without alphanumeric characters", name),
                     member);
             }
             annot = annot(*it, annot.hidden);
@@ -89,7 +89,7 @@ struct arg_name_parser {
             auto it = res.first;
             if ((*it).second != annot) {
                 throw std::meta::exception(
-                    fmtext::format("conflicting short argument configuration for member '{}': '{}'",
+                    std::format("conflicting short argument configuration for member '{}': '{}'",
                         identifier_of(member), it->second.short_name),
                     member);
             }
@@ -112,7 +112,7 @@ struct positional_parser {
     consteval void do_parse(annotations::positional_annot annot, std::meta::info member, const parsing_environment&) {
         if (positional.has_value()) {
             throw std::meta::exception(
-                fmtext::format("multiple positional annotations for member '{}'", identifier_of(member)),
+                std::format("multiple positional annotations for member '{}'", identifier_of(member)),
                 member);
         }
         positional = annot;
@@ -151,7 +151,7 @@ struct env_default_parser {
             auto last_range = std::ranges::find_last_if(name, &ascii::is_alphanumeric<char>);
             if (last_range.empty()) {
                 throw std::meta::exception(
-                    fmtext::format("environment variable name cannot be generated from member name '{}' without alphanumeric characters", name),
+                    std::format("environment variable name cannot be generated from member name '{}' without alphanumeric characters", name),
                     member);
             }
             auto first = std::ranges::find_if(name, &ascii::is_alphanumeric<char>);
@@ -176,7 +176,7 @@ struct help_parser {
         if (annot.help_text != annotations::help_annot::default_help) {
             if (help_text != annotations::help_annot::default_help) {
                 throw std::meta::exception(
-                    fmtext::format("multiple help annotations for member '{}'", identifier_of(member)),
+                    std::format("multiple help annotations for member '{}'", identifier_of(member)),
                     member);
             }
             help_text = annot.help_text;

@@ -2,9 +2,9 @@
 #ifndef CCCLAP_UTIL_FMTEXT_H
 #define CCCLAP_UTIL_FMTEXT_H 1
 
-#ifndef CCCLAP_DISABLE_NATIVE_LANGUAGE
+#ifndef CCCLAP_DISABLE_I18N
 #include <libintl.h>
-#endif // !CCCLAP_DISABLE_NATIVE_LANGUAGE
+#endif // !CCCLAP_DISABLE_I18N
 
 #include <cstdio>
 #include <concepts>
@@ -17,7 +17,7 @@
 #include <clap/util/cstring.hh>
 #include <clap/util/metax.hh>
 
-namespace clap::fmtext {
+namespace clap::i18n {
 
 template<std::unsigned_integral T>
 struct plural { T n; };
@@ -25,27 +25,27 @@ struct plural { T n; };
 namespace details {
 
 constexpr cstring_view gettext(cstring_view msgid) noexcept {
-#ifdef CCCLAP_DISABLE_NATIVE_LANGUAGE
+#ifdef CCCLAP_DISABLE_I18N
     return msgid;
-#else // vvv !CCCLAP_DISABLE_NATIVE_LANGUAGE
+#else // !CCCLAP_DISABLE_I18N
     if consteval {
         return msgid;
     } else {
         return ::gettext(msgid.c_str());
     }
-#endif // CCCLAP_DISABLE_NATIVE_LANGUAGE
+#endif // CCCLAP_DISABLE_I18N
 }
 
 constexpr cstring_view ngettext(cstring_view msgid, cstring_view msgid_plural, unsigned long n) noexcept {
-#ifdef CCCLAP_DISABLE_NATIVE_LANGUAGE
+#ifdef CCCLAP_DISABLE_I18N
     return n == 1 ? msgid : msgid_plural;
-#else // vvv !CCCLAP_DISABLE_NATIVE_LANGUAGE
+#else // !CCCLAP_DISABLE_I18N
     if consteval {
         return n == 1 ? msgid : msgid_plural;
     } else {
         return ::ngettext(msgid.c_str(), msgid_plural.c_str(), n);
     }
-#endif // CCCLAP_DISABLE_NATIVE_LANGUAGE
+#endif // CCCLAP_DISABLE_I18N
 }
 
 template<typename CharT>
@@ -90,7 +90,7 @@ constexpr auto translate(cstring_view msgid, cstring_view msgid_plural, const au
     return std::dynamic_format(ngettext(msgid, msgid_plural, n));
 }
 
-} // namespace clap::fmtext::details
+} // namespace clap::i18n::details
 
 constexpr auto dynamic_format(cstring_view s) noexcept {
     return details::dynamic_format_cstring<char>(s);
@@ -210,12 +210,12 @@ void plural_println(FILE* f,
     std::println(f, details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
 }
 
-} // namespace clap::fmtext
+} // namespace clap::i18n
 
 template<typename T>
-struct std::formatter<clap::fmtext::plural<T>, char> : std::formatter<T, char> {
+struct std::formatter<clap::i18n::plural<T>, char> : std::formatter<T, char> {
     template <typename FormatContext>
-    constexpr auto format(clap::fmtext::plural<T> p, FormatContext& ctx) const {
+    constexpr auto format(clap::i18n::plural<T> p, FormatContext& ctx) const {
         return std::formatter<T, char>::format(p.n, ctx);
     }
 };
