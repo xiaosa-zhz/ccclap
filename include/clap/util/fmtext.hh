@@ -60,7 +60,7 @@ private:
     basic_cstring_view<CharT> str_;
 };
 
-constexpr unsigned long extract_plural_arg(auto&...) noexcept {
+constexpr unsigned long extract_plural_arg(const auto&...) noexcept {
     auto& chosen = [:[self = std::meta::current_function()] consteval {
         std::meta::info found = {};
         for (auto param : parameters_of(self)) {
@@ -79,6 +79,15 @@ constexpr unsigned long extract_plural_arg(auto&...) noexcept {
         return found;
     }():];
     return static_cast<unsigned long>(chosen.n);
+}
+
+constexpr auto translate(cstring_view s) noexcept {
+    return std::dynamic_format(gettext(s));
+}
+
+constexpr auto translate(cstring_view msgid, cstring_view msgid_plural, const auto&... args) noexcept {
+    const auto n = extract_plural_arg(args...);
+    return std::dynamic_format(ngettext(msgid, msgid_plural, n));
 }
 
 } // namespace clap::fmtext::details
@@ -118,14 +127,12 @@ using format_cstring = [:^^basic_format_cstring<char, Args...>:];
 
 template<typename... Args>
 constexpr std::string format(format_cstring<Args...> fmt, Args&&... args) {
-    const auto translated_fmt = details::gettext(fmt);
-    return std::format(std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    return std::format(details::translate(fmt), std::forward<Args>(args)...);
 }
 
 template<std::output_iterator<char> Out, typename... Args>
 constexpr Out format_to(Out out, format_cstring<Args...> fmt, Args&&... args) {
-    const auto translated_fmt = details::gettext(fmt);
-    return std::format_to(std::move(out), std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    return std::format_to(std::move(out), details::translate(fmt), std::forward<Args>(args)...);
 }
 
 template<typename Container, typename... Args>
@@ -136,39 +143,33 @@ constexpr auto format_append(Container& c, format_cstring<Args...> fmt, Args&&..
 
 template<typename... Args>
 void print(format_cstring<Args...> fmt, Args&&... args) {
-    const auto translated_fmt = details::gettext(fmt);
-    std::print(std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    std::print(details::translate(fmt), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 void print(FILE* f, format_cstring<Args...> fmt, Args&&... args)
     pre (f != nullptr)
 {
-    const auto translated_fmt = details::gettext(fmt);
-    std::print(f, std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    std::print(f, details::translate(fmt), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 void println(format_cstring<Args...> fmt, Args&&... args) {
-    const auto translated_fmt = details::gettext(fmt);
-    std::println(std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    std::println(details::translate(fmt), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 void println(FILE* f, format_cstring<Args...> fmt, Args&&... args)
     pre (f != nullptr)
 {
-    const auto translated_fmt = details::gettext(fmt);
-    std::println(f, std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    std::println(f, details::translate(fmt), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 constexpr std::string plural_format(format_cstring<Args...> fmt,
                                     format_cstring<Args...> fmt_plural,
                                     Args&&... args) {
-    const auto translated_fmt = details::ngettext(fmt, fmt_plural,
-        details::extract_plural_arg(args...));
-    return std::format(std::dynamic_format(translated_fmt), std::make_format_args(args...));
+    return std::format(details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
 }
 
 template<std::output_iterator<char> Out, typename... Args>
@@ -176,16 +177,12 @@ constexpr auto plural_format_to(Out out,
                                 format_cstring<Args...> fmt,
                                 format_cstring<Args...> fmt_plural,
                                 Args&&... args) {
-    const auto translated_fmt = details::ngettext(fmt, fmt_plural,
-        details::extract_plural_arg(args...));
-    return std::format_to(std::move(out), std::dynamic_format(translated_fmt), std::make_format_args(args...));
+    return std::format_to(std::move(out), details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 void plural_print(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
-    const auto translated_fmt = details::ngettext(fmt, fmt_plural,
-        details::extract_plural_arg(args...));
-    std::print(std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    std::print(details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
@@ -195,16 +192,12 @@ void plural_print(FILE* f,
                   Args&&... args)
     pre (f != nullptr)
 {
-    const auto translated_fmt = details::ngettext(fmt, fmt_plural,
-        details::extract_plural_arg(args...));
-    std::print(f, std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    std::print(f, details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
 void plural_println(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
-    const auto translated_fmt = details::ngettext(fmt, fmt_plural,
-        details::extract_plural_arg(args...));
-    std::println(std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    std::println(details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
@@ -214,9 +207,7 @@ void plural_println(FILE* f,
                     Args&&... args)
     pre (f != nullptr)
 {
-    const auto translated_fmt = details::ngettext(fmt, fmt_plural,
-        details::extract_plural_arg(args...));
-    std::println(f, std::dynamic_format(translated_fmt), std::forward<Args>(args)...);
+    std::println(f, details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
 }
 
 } // namespace clap::fmtext
@@ -225,8 +216,7 @@ template<typename T>
 struct std::formatter<clap::fmtext::plural<T>, char> : std::formatter<T, char> {
     template <typename FormatContext>
     constexpr auto format(clap::fmtext::plural<T> p, FormatContext& ctx) const {
-        using base = std::formatter<T, char>;
-        return base::format(p.n, ctx);
+        return std::formatter<T, char>::format(p.n, ctx);
     }
 };
 
