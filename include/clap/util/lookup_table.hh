@@ -5,6 +5,7 @@
 #include <span>
 #include <optional>
 #include <iterator>
+#include <memory>
 #include <algorithm>
 #include <ranges>
 
@@ -32,12 +33,34 @@ private:
         using reference       = lookup_table::reference;
         using iterator_category = std::random_access_iterator_tag;
 
+        class proxy_pointer
+        {
+        public:
+            proxy_pointer() = delete;
+            proxy_pointer(const proxy_pointer&) = delete;
+            proxy_pointer& operator=(const proxy_pointer&) = delete;
+
+            constexpr const reference* operator->() const noexcept {
+                return std::addressof(ref);
+            }
+
+        private:
+            friend lookup_table_iterator;
+            explicit proxy_pointer(reference r) noexcept : ref(r) {}
+
+            reference ref;
+        };
+
         constexpr lookup_table_iterator() noexcept = default;
         constexpr lookup_table_iterator(const lookup_table_iterator&) noexcept = default;
         constexpr lookup_table_iterator& operator=(const lookup_table_iterator&) noexcept = default;
 
         constexpr reference operator*() const noexcept {
             return { *kptr_, *vptr_ };
+        }
+
+        constexpr auto operator->() const noexcept {
+            return proxy_pointer(**this);
         }
 
         constexpr lookup_table_iterator& operator++() noexcept {
