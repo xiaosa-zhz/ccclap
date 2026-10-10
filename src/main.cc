@@ -83,9 +83,9 @@ constexpr void lut_test() {
             {std::define_static_string("bar"), +[] { fmtext::println("bar"); }},
             {std::define_static_string("baz"), +[] { fmtext::println("baz"); }},
         };
-        return std::define_static_array(r);
+        return clap::metax::define_static_array(r);
     }();
-    static constexpr auto lut = clap::details::make_lookup_table<action_type, raw.data(), raw.size()>();
+    static constexpr auto lut = clap::details::make_lookup_table<action_type, raw.size()>(raw);
     lut.at("foo")();
     lut.at("bar")();
     lut.at("baz")();

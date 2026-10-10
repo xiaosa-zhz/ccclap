@@ -18,6 +18,8 @@
 #include <clap/annotations.hh>
 #include <clap/util/ascii.hh>
 #include <clap/util/casecvt.hh>
+#include <clap/util/cstring.hh>
+#include <clap/util/metax.hh>
 
 /*
 
@@ -53,68 +55,16 @@ namespace clap {
 
 namespace details {
 
-// FIXME: GCC does not have trivial union yet, making std::inplace_vector
-// not capable for non-trivial types during constant evaluation.
-// Consider using std::string_view when it is fixed.
-
-struct null_sentinel_t {
-    template<std::input_iterator I>
-        requires std::default_initializable<std::iter_value_t<I>>
-        && std::equality_comparable_with<std::iter_reference_t<I>, std::iter_value_t<I>>
-    friend constexpr bool operator==(const I& it, null_sentinel_t) {
-        return *it == std::iter_value_t<I>();
-    }
-};
-
-inline constexpr null_sentinel_t null_sentinel;
-
-struct null_term_fn {
-    template<std::input_iterator I>
-        requires std::default_initializable<std::iter_value_t<I>>
-        && std::equality_comparable_with<std::iter_reference_t<I>, std::iter_value_t<I>>
-    [[nodiscard]] constexpr auto operator()(I it) const {
-        return std::ranges::subrange(std::move(it), null_sentinel);
-    }
-};
-
-inline constexpr null_term_fn null_term = {};
-
-struct NTCS_comparator {
-    using is_transparent = void;
-
-    [[nodiscard]] static constexpr bool operator()(const char* lhs, const char* rhs) noexcept {
-        return std::ranges::lexicographical_compare(
-            null_term(lhs), null_term(rhs));
-    }
-
-    template<std::convertible_to<std::string_view> V>
-    [[nodiscard]] static constexpr bool operator()(const char* lhs, V&& rhs) noexcept {
-        return std::ranges::lexicographical_compare(
-            null_term(lhs), std::string_view(std::forward<V>(rhs)));
-    }
-
-    template<std::convertible_to<std::string_view> V>
-    [[nodiscard]] static constexpr bool operator()(V&& lhs, const char* rhs) noexcept {
-        return std::ranges::lexicographical_compare(
-            std::string_view(std::forward<V>(lhs)), null_term(rhs));
-    }
-
-    template<std::convertible_to<std::string_view> V1, std::convertible_to<std::string_view> V2>
-    [[nodiscard]] static constexpr bool operator()(V1&& lhs, V2&& rhs) noexcept {
-        return std::string_view(std::forward<V1>(lhs)) < std::string_view(std::forward<V2>(rhs));
-    }
-};
-
 template<typename Action, std::size_t N>
-using lookup_table = std::flat_map<const char*, Action, NTCS_comparator,
-    std::inplace_vector<const char*, N>, std::inplace_vector<Action, N>>;
+using lookup_table = std::flat_map<cstring_view, Action, std::less<>,
+    std::inplace_vector<cstring_view, N>, std::inplace_vector<Action, N>>;
 
 template<typename Action>
 using lookup_table_entry = lookup_table<Action, 0>::value_type;
 
-template<typename Action, const lookup_table_entry<Action>* Table, std::size_t N>
-constexpr lookup_table<Action, N> make_lookup_table() noexcept {
-    return lookup_table<Action, N>(std::from_range, std::span(Table, N));
+template<typename Action, std::size_t N>
+constexpr lookup_table<Action, N> make_lookup_table(std::span<const lookup_table_entry<Action>> entries) noexcept {
+    return lookup_table<Action, N>(std::from_range, entries);
 }
 
 template<typename Action>
