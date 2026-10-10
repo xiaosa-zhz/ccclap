@@ -20,6 +20,7 @@
 #include <clap/util/casecvt.hh>
 #include <clap/util/cstring.hh>
 #include <clap/util/metax.hh>
+#include <clap/util/lookup_table.hh>
 
 /*
 
@@ -55,16 +56,10 @@ namespace clap {
 
 namespace details {
 
-template<typename Action, std::size_t N>
-using lookup_table = std::flat_map<cstring_view, Action, std::less<>,
-    std::inplace_vector<cstring_view, N>, std::inplace_vector<Action, N>>;
-
-template<typename Action>
-using lookup_table_entry = lookup_table<Action, 0>::value_type;
-
-template<typename Action, std::size_t N>
-constexpr lookup_table<Action, N> make_lookup_table(std::span<const lookup_table_entry<Action>> entries) noexcept {
-    return lookup_table<Action, N>(std::from_range, entries);
+template<typename Action, typename R>
+constexpr util::lookup_table<cstring_view, Action> make_lookup_table(R&& entries) noexcept {
+    std::flat_map<cstring_view, Action> map(std::from_range, std::forward<R>(entries));
+    return { metax::define_static_string_array(map.keys()), std::define_static_array(map.values()) };
 }
 
 template<typename Action>

@@ -59,7 +59,7 @@ private:
             return { *kptr_, *vptr_ };
         }
 
-        constexpr auto operator->() const noexcept {
+        constexpr proxy_pointer operator->() const noexcept {
             return proxy_pointer(**this);
         }
 
@@ -97,6 +97,10 @@ private:
             return *this;
         }
 
+        friend constexpr lookup_table_iterator operator+(difference_type n, const lookup_table_iterator& it) noexcept {
+            return it + n;
+        }
+
         constexpr lookup_table_iterator operator-(difference_type n) const noexcept {
             return lookup_table_iterator(kptr_ - n, vptr_ - n);
         }
@@ -113,6 +117,14 @@ private:
 
         constexpr reference operator[](difference_type n) const noexcept {
             return *(*this + n);
+        }
+
+        friend constexpr auto operator<=>(const lookup_table_iterator& lhs, const lookup_table_iterator& rhs) noexcept {
+            return lhs.kptr_ <=> rhs.kptr_;
+        }
+
+        friend constexpr bool operator==(const lookup_table_iterator& lhs, const lookup_table_iterator& rhs) noexcept {
+            return lhs.kptr_ == rhs.kptr_;
         }
 
     private:
@@ -147,7 +159,7 @@ public:
     constexpr lookup_table(key_container_type keys, mapped_container_type values, key_compare comp = {}) noexcept
         pre (std::ranges::is_sorted(keys, comp))
         pre (std::ranges::size(keys) == std::ranges::size(values))
-        pre (std::ranges::adjacent_find(std::views::reverse(keys), comp) == keys.end())
+        pre (std::ranges::adjacent_find(keys, std::not_fn(comp)) == keys.end())
         : comp_(comp), keys_(keys), values_(values)
     {}
 
@@ -176,20 +188,20 @@ public:
 
     template<typename K>
         requires (not std::same_as<K, key_type>) && transparent_key<K>
-    constexpr reference at(const K& key) const {
+    constexpr const mapped_type& at(const K& key) const {
         auto it = find(key);
         if (it == end()) {
             throw std::out_of_range("key not found");
         }
-        return *it;
+        return it->second;
     }
 
-    constexpr reference at(const key_type& key) const {
+    constexpr const mapped_type& at(const key_type& key) const {
         auto it = find(key);
         if (it == end()) {
             throw std::out_of_range("key not found");
         }
-        return *it;
+        return it->second;
     }
 
     template<typename K>
