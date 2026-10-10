@@ -25,7 +25,7 @@ struct reflect_constant_customization_fn {
 };
 
 template<typename T>
-inline constexpr reflect_constant_customization_fn<T> reflect_constant_customization = {};
+inline constexpr reflect_constant_customization_fn<std::remove_cvref_t<T>> reflect_constant_customization = {};
 
 // Additional reflect_constant support by this lib
 
@@ -36,8 +36,8 @@ struct reflect_constant_customization_fn<std::pair<K, V>> {
 
     static consteval std::meta::info operator()(const std::pair<K, V>& p) {
         return substitute(^^pair_val, {
-            std::meta::reflect_constant(reflect_constant_customization<std::remove_cv_t<K>>(p.first)),
-            std::meta::reflect_constant(reflect_constant_customization<std::remove_cv_t<V>>(p.second)),
+            std::meta::reflect_constant(reflect_constant_customization<K>(p.first)),
+            std::meta::reflect_constant(reflect_constant_customization<V>(p.second)),
         });
     }
 };
@@ -94,7 +94,7 @@ struct reflect_constant_customization_fn<std::inplace_vector<T, N>> {
     static consteval std::meta::info operator()(const std::inplace_vector<T, N>& vec) {
         std::vector<std::meta::info> args;
         for (auto& val : vec) {
-            args.push_back(std::meta::reflect_constant(reflect_constant_customization<std::remove_cv_t<T>>(val)));
+            args.push_back(std::meta::reflect_constant(reflect_constant_customization<T>(val)));
         }
         return substitute(^^inplace_vector_val, args);
     }
@@ -119,7 +119,7 @@ struct reflect_constant_customization_fn<std::flat_map<K, V, Comp, KC, VC>> {
 struct reflect_constant_fn {
     template<typename T>
     static consteval std::meta::info operator()(T&& val) {
-        return reflect_constant_customization<std::remove_cvref_t<T>>(val);
+        return reflect_constant_customization<T>(val);
     }
 };
 
