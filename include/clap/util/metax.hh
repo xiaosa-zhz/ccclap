@@ -6,6 +6,7 @@
 #include <initializer_list>
 #include <span>
 #include <ranges>
+#include <format>
 
 #include <clap/util/cstring.hh>
 
@@ -35,7 +36,7 @@ consteval T substitute_value(std::meta::info template_info, R&& args) {
 // Convert range of string-like objects to a static string array (std::span<const cstring_view<CharT>>)
 template<typename R>
     requires requires { typename std::ranges::range_value_t<std::ranges::range_value_t<R>>; }
-consteval std::span<const std::ranges::range_value_t<R>> define_static_string_array(R&& r) {
+consteval auto define_static_string_array(R&& r) {
     using char_type = std::ranges::range_value_t<std::ranges::range_value_t<R>>;
     using sv_type = basic_cstring_view<char_type>;
     static constexpr auto sv_info = ^^sv_type;
@@ -47,7 +48,12 @@ consteval std::span<const std::ranges::range_value_t<R>> define_static_string_ar
     const auto val_info = substitute(^^details::sv_val, args);
     const auto pair = substitute_value<std::pair<const sv_type*, std::size_t>>(
         ^^details::span_pair_val, { sv_info, val_info });
-    return { pair.first, pair.second };
+    return std::span<const sv_type>(pair.first, pair.second);
+}
+
+template<typename... Args>
+consteval cstring_view format_static_string(std::format_string<Args...> fmt, Args&&... args) {
+    return std::define_static_string(std::format(fmt, std::forward<Args>(args)...));
 }
 
 } // namespace clap::metax
