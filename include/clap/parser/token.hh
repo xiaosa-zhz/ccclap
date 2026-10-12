@@ -110,6 +110,10 @@ public:
             return lhs.argv == rhs.argv;
         }
 
+        friend constexpr bool operator==(const iterator& lhs, std::default_sentinel_t) noexcept {
+            return lhs.argv == nullptr;
+        }
+
         friend constexpr std::strong_ordering operator<=>(const iterator& lhs, const iterator& rhs) noexcept {
             return lhs.argv <=> rhs.argv;
         }
