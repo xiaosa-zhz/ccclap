@@ -1,14 +1,19 @@
 #pragma once
-#ifndef CCCLAP_UTIL_FMTEXT_H
-#define CCCLAP_UTIL_FMTEXT_H 1
+#ifndef CCCLAP_UTIL_I18N_H
+#define CCCLAP_UTIL_I18N_H 1
 
-#ifndef CCCLAP_DISABLE_I18N
+#if !defined(CCCLAP_DISABLE_I18N) && __has_include(<libintl.h>)
 #include <libintl.h>
-#endif // !CCCLAP_DISABLE_I18N
+#include <locale.h>
+#define CCCLAP_HAS_LIBINTL 1
+#endif // !defined(CCCLAP_DISABLE_I18N) && __has_include(<libintl.h>)
 
 #include <cstdio>
 #include <concepts>
 #include <meta>
+#include <utility>
+#include <locale>
+#include <optional>
 #include <string>
 #include <iterator>
 #include <format>
@@ -22,42 +27,109 @@ namespace clap::i18n {
 template<std::unsigned_integral T>
 struct plural { T n; };
 
+struct i18n_args {
+    cstring_view domain = {};
+    int category = -1;
+    std::optional<const std::locale&> locale = std::nullopt;
+};
+
 namespace details {
 
-constexpr cstring_view gettext(cstring_view msgid) noexcept {
-#ifdef CCCLAP_DISABLE_I18N
+class posix_locale_guard
+{
+public:
+    posix_locale_guard(const posix_locale_guard&) = delete;
+    posix_locale_guard& operator=(const posix_locale_guard&) = delete;
+
+    static constexpr posix_locale_guard make(const std::locale& std_locale) {
+        if consteval {
+            throw std::meta::exception("Should not use locale during constant evaluation", {});
+        } else {
+            return posix_locale_guard(std_locale.name());
+        }
+    }
+
+    posix_locale_guard(cstring_view name) noexcept {
+        ::locale_t locale = ::newlocale(LC_ALL_MASK, name.c_str(), nullptr);
+        if (locale != nullptr) {
+            old_locale_ = ::uselocale(locale);
+        }
+    }
+
+    constexpr ~posix_locale_guard() {
+        if !consteval {
+            if (old_locale_ != nullptr) {
+                ::freelocale(::uselocale(old_locale_));
+            }
+        }
+    }
+
+private:
+    ::locale_t old_locale_ = nullptr;
+};
+
+constexpr cstring_view gettext(const i18n_args& ia, cstring_view msgid) noexcept {
+#if !defined(CCCLAP_HAS_LIBINTL)
     return msgid;
-#else // !CCCLAP_DISABLE_I18N
+#else // defined(CCCLAP_HAS_LIBINTL)
     if consteval {
         return msgid;
     } else {
-        return ::gettext(msgid.c_str());
+        const auto guard = ia.locale.transform(&posix_locale_guard::make);
+        if (!ia.domain.empty()) {
+            if (ia.category != -1) {
+                return ::dcgettext(ia.domain.c_str(),
+                                msgid.c_str(),
+                                ia.category);
+            } else {
+                return ::dgettext(ia.domain.c_str(), msgid.c_str());
+            }
+        } else {
+            return ::gettext(msgid.c_str());
+        }
     }
-#endif // CCCLAP_DISABLE_I18N
+#endif // !defined(CCCLAP_HAS_LIBINTL)
 }
 
-constexpr cstring_view ngettext(cstring_view msgid, cstring_view msgid_plural, unsigned long n) noexcept {
-#ifdef CCCLAP_DISABLE_I18N
+constexpr cstring_view ngettext(const i18n_args& ia,
+                                cstring_view msgid,
+                                cstring_view msgid_plural,
+                                unsigned long n) noexcept {
+#if !defined(CCCLAP_HAS_LIBINTL)
     return n == 1 ? msgid : msgid_plural;
-#else // !CCCLAP_DISABLE_I18N
+#else // defined(CCCLAP_HAS_LIBINTL)
     if consteval {
         return n == 1 ? msgid : msgid_plural;
     } else {
-        return ::ngettext(msgid.c_str(), msgid_plural.c_str(), n);
+        const auto guard = ia.locale.transform(&posix_locale_guard::make);
+        if (!ia.domain.empty()) {
+            if (ia.category != -1) {
+                return ::dcngettext(ia.domain.c_str(),
+                                    msgid.c_str(), msgid_plural.c_str(), n,
+                                    ia.category);
+            } else {
+                return ::dngettext(ia.domain.c_str(),
+                                   msgid.c_str(), msgid_plural.c_str(), n);
+            }
+        } else {
+            return ::ngettext(msgid.c_str(), msgid_plural.c_str(), n);
+        }
     }
-#endif // CCCLAP_DISABLE_I18N
+#endif // !defined(CCCLAP_HAS_LIBINTL)
 }
 
 template<typename CharT>
 class dynamic_format_cstring
 {
 public:
-    constexpr dynamic_format_cstring(basic_cstring_view<CharT> s) noexcept : str_(s) {}
+    using cstring_view = basic_cstring_view<CharT>;
+
+    constexpr dynamic_format_cstring(cstring_view s) noexcept : fmt_(s) {}
     dynamic_format_cstring(const dynamic_format_cstring&) = delete;
     dynamic_format_cstring& operator=(const dynamic_format_cstring&) = delete;
-    constexpr basic_cstring_view<CharT> get() const noexcept { return str_; }
+    constexpr cstring_view get() const noexcept { return fmt_; }
 private:
-    basic_cstring_view<CharT> str_;
+    cstring_view fmt_;
 };
 
 constexpr unsigned long extract_plural_arg(const auto&...) noexcept {
@@ -81,13 +153,24 @@ constexpr unsigned long extract_plural_arg(const auto&...) noexcept {
     return static_cast<unsigned long>(chosen.n);
 }
 
-constexpr auto translate(cstring_view s) noexcept {
-    return std::dynamic_format(gettext(s));
+template<typename CharT>
+constexpr auto translate(const i18n_args& ia, basic_cstring_view<CharT> msgid) noexcept {
+    return std::dynamic_format(gettext(ia, msgid));
 }
 
-constexpr auto translate(cstring_view msgid, cstring_view msgid_plural, const auto&... args) noexcept {
+template<typename CharT>
+constexpr auto translate(const i18n_args& ia,
+                         basic_cstring_view<CharT> msgid,
+                         basic_cstring_view<CharT> msgid_plural,
+                         const auto&... args) noexcept {
     const auto n = extract_plural_arg(args...);
-    return std::dynamic_format(ngettext(msgid, msgid_plural, n));
+    return std::dynamic_format(ngettext(ia, msgid, msgid_plural, n));
+}
+
+inline std::string& local_buffer() {
+    thread_local std::string buf;
+    buf.clear();
+    return buf;
 }
 
 } // namespace clap::i18n::details
@@ -101,25 +184,26 @@ template<typename CharT, typename... Args>
 class basic_format_cstring
 {
 public:
+    using cstring_view = basic_cstring_view<CharT>;
+
     basic_format_cstring() = delete;
     constexpr basic_format_cstring(const basic_format_cstring&) = default;
     constexpr basic_format_cstring& operator=(const basic_format_cstring&) = default;
 
-    template<std::convertible_to<basic_cstring_view<CharT>> T>
-    consteval basic_format_cstring(const T& str)
-        : str_((((void)std::basic_format_string<CharT, Args...>(str)), str))
+    template<std::convertible_to<cstring_view> FMT>
+    consteval basic_format_cstring(const FMT& fmt)
+        : fmt_((((void)std::basic_format_string<CharT, Args...>(fmt)), fmt))
     {}
 
     constexpr basic_format_cstring(details::dynamic_format_cstring<CharT> s) noexcept
-        : str_(s.get())
+        : fmt_(s.get())
     {}
 
-    constexpr auto get() const noexcept -> basic_cstring_view<CharT> { return str_; }
-    constexpr const CharT* c_str() const noexcept { return str_.c_str(); }
-    constexpr operator basic_cstring_view<CharT>() const noexcept { return get(); }
+    constexpr cstring_view get() const noexcept { return fmt_; }
+    constexpr const CharT* c_str() const noexcept { return fmt_.c_str(); }
 
 private:
-    basic_cstring_view<CharT> str_;
+    cstring_view fmt_;
 };
 
 template<typename... Args>
@@ -127,49 +211,126 @@ using format_cstring = [:^^basic_format_cstring<char, Args...>:];
 
 template<typename... Args>
 constexpr std::string format(format_cstring<Args...> fmt, Args&&... args) {
-    return std::format(details::translate(fmt), std::forward<Args>(args)...);
+    return std::format(details::translate({}, fmt.get()), std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+constexpr std::string format(const i18n_args& ia, format_cstring<Args...> fmt, Args&&... args) {
+    if (ia.locale) {
+        return std::format(*ia.locale, details::translate(ia, fmt.get()), std::forward<Args>(args)...);
+    } else {
+        return std::format(details::translate(ia, fmt.get()), std::forward<Args>(args)...);
+    }
 }
 
 template<std::output_iterator<char> Out, typename... Args>
 constexpr Out format_to(Out out, format_cstring<Args...> fmt, Args&&... args) {
-    return std::format_to(std::move(out), details::translate(fmt), std::forward<Args>(args)...);
+    return std::format_to(std::move(out), details::translate({}, fmt.get()), std::forward<Args>(args)...);
 }
 
-template<typename Container, typename... Args>
-    requires requires (Container& c, char ch) { c.push_back(ch); }
-constexpr auto format_append(Container& c, format_cstring<Args...> fmt, Args&&... args) {
-    return format_to(std::back_inserter(c), fmt, std::forward<Args>(args)...);
+template<std::output_iterator<char> Out, typename... Args>
+constexpr Out format_to(Out out, const i18n_args& ia, format_cstring<Args...> fmt, Args&&... args) {
+    if (ia.locale) {
+        return std::format_to(std::move(out), *ia.locale, details::translate(ia, fmt.get()), std::forward<Args>(args)...);
+    } else {
+        return std::format_to(std::move(out), details::translate(ia, fmt.get()), std::forward<Args>(args)...);
+    }
 }
+
+namespace details {
+
+template<typename... Args>
+cstring_view format_to_local_buffer(const i18n_args& ia, format_cstring<Args...> fmt, Args&&... args)
+    pre (ia.locale.has_value())
+{
+    std::string& buf = local_buffer();
+    i18n::format_to(std::back_inserter(buf), ia, fmt, std::forward<Args>(args)...);
+    return buf;
+}
+
+} // namespace clap::i18n::details
 
 template<typename... Args>
 void print(format_cstring<Args...> fmt, Args&&... args) {
-    std::print(details::translate(fmt), std::forward<Args>(args)...);
+    std::print(details::translate({}, fmt.get()), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
-void print(FILE* f, format_cstring<Args...> fmt, Args&&... args)
+void print(const i18n_args& ia, format_cstring<Args...> fmt, Args&&... args) {
+    if (ia.locale) {
+        std::print("{}", details::format_to_local_buffer(ia, fmt, std::forward<Args>(args)...));
+    } else {
+        std::print(details::translate(ia, fmt.get()), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void print(std::FILE* f, format_cstring<Args...> fmt, Args&&... args)
     pre (f != nullptr)
 {
-    std::print(f, details::translate(fmt), std::forward<Args>(args)...);
+    std::print(f, details::translate({}, fmt.get()), std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+void print(std::FILE* f, const i18n_args& ia, format_cstring<Args...> fmt, Args&&... args)
+    pre (f != nullptr)
+{
+    if (ia.locale) {
+        std::print(f, "{}", details::format_to_local_buffer(ia, fmt, std::forward<Args>(args)...));
+    } else {
+        std::print(f, details::translate(ia, fmt.get()), std::forward<Args>(args)...);
+    }
 }
 
 template<typename... Args>
 void println(format_cstring<Args...> fmt, Args&&... args) {
-    std::println(details::translate(fmt), std::forward<Args>(args)...);
+    std::println(details::translate({}, fmt.get()), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
-void println(FILE* f, format_cstring<Args...> fmt, Args&&... args)
+void println(const i18n_args& ia, format_cstring<Args...> fmt, Args&&... args) {
+    if (ia.locale) {
+        std::println("{}", details::format_to_local_buffer(ia, fmt, std::forward<Args>(args)...));
+    } else {
+        std::println(details::translate(ia, fmt.get()), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void println(std::FILE* f, format_cstring<Args...> fmt, Args&&... args)
     pre (f != nullptr)
 {
-    std::println(f, details::translate(fmt), std::forward<Args>(args)...);
+    std::println(f, details::translate({}, fmt.get()), std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+void println(std::FILE* f, const i18n_args& ia, format_cstring<Args...> fmt, Args&&... args)
+    pre (f != nullptr)
+{
+    if (ia.locale) {
+        std::println(f, "{}", details::format_to_local_buffer(ia, fmt, std::forward<Args>(args)...));
+    } else {
+        std::println(f, details::translate(ia, fmt.get()), std::forward<Args>(args)...);
+    }
 }
 
 template<typename... Args>
 constexpr std::string plural_format(format_cstring<Args...> fmt,
                                     format_cstring<Args...> fmt_plural,
                                     Args&&... args) {
-    return std::format(details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
+    return std::format(details::translate({}, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+constexpr std::string plural_format(const i18n_args& ia,
+                                    format_cstring<Args...> fmt,
+                                    format_cstring<Args...> fmt_plural,
+                                    Args&&... args) {
+    if (ia.locale) {
+        return std::format(*ia.locale, details::translate(ia, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+    } else {
+        return std::format(details::translate(ia, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+    }
 }
 
 template<std::output_iterator<char> Out, typename... Args>
@@ -177,37 +338,120 @@ constexpr auto plural_format_to(Out out,
                                 format_cstring<Args...> fmt,
                                 format_cstring<Args...> fmt_plural,
                                 Args&&... args) {
-    return std::format_to(std::move(out), details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
+    return std::format_to(std::move(out), details::translate({}, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
 }
+
+template<std::output_iterator<char> Out, typename... Args>
+constexpr auto plural_format_to(Out out,
+                                const i18n_args& ia,
+                                format_cstring<Args...> fmt,
+                                format_cstring<Args...> fmt_plural,
+                                Args&&... args) {
+    if (ia.locale) {
+        return std::format_to(std::move(out), *ia.locale, details::translate(ia, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+    } else {
+        return std::format_to(std::move(out), details::translate(ia, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+    }
+}
+
+namespace details {
+
+template<typename... Args>
+inline std::string& plural_format_to_local_buffer(const i18n_args& ia,
+                                           format_cstring<Args...> fmt,
+                                           format_cstring<Args...> fmt_plural,
+                                           Args&&... args)
+    pre (ia.locale.has_value())
+{
+    std::string& buf = local_buffer();
+    i18n::plural_format_to(std::back_inserter(buf), ia, fmt, fmt_plural, std::forward<Args>(args)...);
+    return buf;
+}
+
+} // namespace clap::i18n::details
 
 template<typename... Args>
 void plural_print(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
-    std::print(details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
+    std::print(details::translate({}, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
-void plural_print(FILE* f,
+void plural_print(const i18n_args& ia,
+                  format_cstring<Args...> fmt,
+                  format_cstring<Args...> fmt_plural,
+                  Args&&... args) {
+    if (ia.locale) {
+        std::print("{}", details::plural_format_to_local_buffer(ia, fmt, fmt_plural, std::forward<Args>(args)...));
+    } else {
+        std::print(details::translate(ia, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void plural_print(std::FILE* f,
                   format_cstring<Args...> fmt,
                   format_cstring<Args...> fmt_plural,
                   Args&&... args)
     pre (f != nullptr)
 {
-    std::print(f, details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
+    std::print(f, details::translate({}, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+void plural_print(std::FILE* f,
+                  const i18n_args& ia,
+                  format_cstring<Args...> fmt,
+                  format_cstring<Args...> fmt_plural,
+                  Args&&... args)
+    pre (f != nullptr)
+{
+    if (ia.locale) {
+        std::print(f, "{}", details::plural_format_to_local_buffer(ia, fmt, fmt_plural, std::forward<Args>(args)...));
+    } else {
+        std::print(f, details::translate(ia, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+    }
 }
 
 template<typename... Args>
 void plural_println(format_cstring<Args...> fmt, format_cstring<Args...> fmt_plural, Args&&... args) {
-    std::println(details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
+    std::println(details::translate({}, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
 }
 
 template<typename... Args>
-void plural_println(FILE* f,
+void plural_println(const i18n_args& ia,
+                    format_cstring<Args...> fmt,
+                    format_cstring<Args...> fmt_plural,
+                    Args&&... args) {
+    if (ia.locale) {
+        std::println("{}", details::plural_format_to_local_buffer(ia, fmt, fmt_plural, std::forward<Args>(args)...));
+    } else {
+        std::println(details::translate(ia, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+    }
+}
+
+template<typename... Args>
+void plural_println(std::FILE* f,
                     format_cstring<Args...> fmt,
                     format_cstring<Args...> fmt_plural,
                     Args&&... args)
     pre (f != nullptr)
 {
-    std::println(f, details::translate(fmt, fmt_plural, args...), std::forward<Args>(args)...);
+    std::println(f, details::translate({}, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+void plural_println(std::FILE* f,
+                    const i18n_args& ia,
+                    format_cstring<Args...> fmt,
+                    format_cstring<Args...> fmt_plural,
+                    Args&&... args)
+    pre (f != nullptr)
+{
+    if (ia.locale) {
+        std::println(f, "{}", details::plural_format_to_local_buffer(ia, fmt, fmt_plural, std::forward<Args>(args)...));
+    } else {
+        std::println(f, details::translate(ia, fmt.get(), fmt_plural.get(), args...), std::forward<Args>(args)...);
+    }
 }
 
 } // namespace clap::i18n
@@ -220,4 +464,4 @@ struct std::formatter<clap::i18n::plural<T>, char> : std::formatter<T, char> {
     }
 };
 
-#endif // !CCCLAP_UTIL_FMTEXT_H
+#endif // !CCCLAP_UTIL_I18N_H
