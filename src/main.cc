@@ -232,9 +232,12 @@ int main(int argc, char** argv) {
     i18n::println("enum_to_string(style::pascal):          {}", clap::enum_to_string(style::pascal).value());
 
     // string_to_enum: 正向查找与无效输入
-    i18n::println("string_to_enum<style>(\"kebab\") == style::kebab:           {}", clap::string_to_enum<style>("kebab") == style::kebab);
-    i18n::println("string_to_enum<style>(\"screaming_snake\") == screaming_snake: {}", clap::string_to_enum<style>("screaming_snake") == style::screaming_snake);
-    i18n::println("string_to_enum<style>(\"INVALID\") has_value:               {}", clap::string_to_enum<style>("INVALID").has_value());
+    i18n::println("string_to_enum<style>(\"kebab\") == style::kebab:                     {}",
+        clap::string_to_enum<style>("kebab") == style::kebab);
+    i18n::println("string_to_enum<style>(\"screaming_snake\") == style::screaming_snake: {}",
+        clap::string_to_enum<style>("screaming_snake") == style::screaming_snake);
+    i18n::println("string_to_enum<style>(\"INVALID\") has_value:                         {}",
+        clap::string_to_enum<style>("INVALID").has_value());
 
     return 0;
 }
