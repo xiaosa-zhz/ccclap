@@ -28,16 +28,19 @@ class any
     static constexpr metainfo info_of = {
         .deleter = +[](void* ptr) static noexcept { delete static_cast<T*>(ptr); },
         .copy = +[](const void* ptr) static -> void* { return new T(*static_cast<const T*>(ptr)); },
-        .type = typeid(T)
+        .type = typeid(T),
     };
 
-    static constexpr metainfo empty_info = { nullptr, nullptr, typeid(void) };
+    static constexpr metainfo empty_info = {
+        .deleter = +[](void* ptr) static noexcept { contract_assert(false); },
+        .copy = +[](const void* ptr) static -> void* { contract_assert(false); return nullptr; },
+        .type = typeid(void),
+    };
 
 public:
     constexpr any() = default;
 
     constexpr any(const any& other)
-        pre (other.data_ || other.info_ == &empty_info)
         : data_(other.data_ ? other.info_->copy(other.data_) : nullptr), info_(other.info_)
     {}
 
@@ -113,7 +116,6 @@ public:
 
     constexpr void reset() noexcept {
         if (data_) {
-            contract_assert(info_ != &empty_info);
             info_->deleter(data_);
             data_ = nullptr;
             info_ = &empty_info;
