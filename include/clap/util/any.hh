@@ -31,9 +31,15 @@ class any
         .type = typeid(T),
     };
 
+    [[noreturn]] static constexpr void empty_info_check() {
+        [[unlikely]];
+        contract_assert(false);
+        std::unreachable();
+    }
+
     static constexpr metainfo empty_info = {
-        .deleter = +[](void* ptr) static noexcept { contract_assert(false); },
-        .copy = +[](const void* ptr) static -> void* { contract_assert(false); return nullptr; },
+        .deleter = +[] [[noreturn]] (void* ptr) static noexcept { empty_info_check(); },
+        .copy = +[] [[noreturn]] (const void* ptr) static -> void* { empty_info_check(); },
         .type = typeid(void),
     };
 
@@ -71,7 +77,7 @@ public:
         : any(std::in_place_type<std::decay_t<T>>, std::forward<T>(value))
     {}
 
-    constexpr any& operator=(const any& other) noexcept {
+    constexpr any& operator=(const any& other) {
         any(other).swap(*this);
         return *this;
     }
@@ -122,8 +128,8 @@ public:
         }
     }
 
-    constexpr bool has_value() const noexcept { return data_ != nullptr; }
-    constexpr const std::type_info& type() const noexcept { return info_->type; }
+    [[nodiscard]] constexpr bool has_value() const noexcept { return data_ != nullptr; }
+    [[nodiscard]] constexpr const std::type_info& type() const noexcept { return info_->type; }
 
     template<typename T>
     friend constexpr T* any_cast(any* operand) noexcept;
@@ -145,25 +151,25 @@ private:
 };
 
 template<typename T>
-constexpr T* any_cast(any* operand) noexcept {
+[[nodiscard]] constexpr T* any_cast(any* operand) noexcept {
     static_assert(!std::is_void_v<T>);
-    if (!operand || operand->type() != typeid(T)) {
-        return nullptr;
+    if (operand && operand->type() == typeid(T)) {
+        return static_cast<T*>(operand->data_);
     }
-    return static_cast<T*>(operand->data_);
+    return nullptr;
 }
 
 template<typename T>
-constexpr const T* any_cast(const any* operand) noexcept {
+[[nodiscard]] constexpr const T* any_cast(const any* operand) noexcept {
     static_assert(!std::is_void_v<T>);
-    if (!operand || operand->type() != typeid(T)) {
-        return nullptr;
+    if (operand && operand->type() == typeid(T)) {
+        return static_cast<const T*>(operand->data_);
     }
-    return static_cast<const T*>(operand->data_);
+    return nullptr;
 }
 
 template<typename T>
-constexpr std::optional<T> any_cast(const any& operand)
+[[nodiscard]] constexpr std::optional<T> any_cast(const any& operand)
     noexcept(std::is_nothrow_constructible_v<T, const std::remove_cvref_t<T>&>)
 {
     using U = std::remove_cvref_t<T>;
@@ -175,7 +181,7 @@ constexpr std::optional<T> any_cast(const any& operand)
 }
 
 template<typename T>
-constexpr std::optional<T> any_cast(any& operand)
+[[nodiscard]] constexpr std::optional<T> any_cast(any& operand)
     noexcept(std::is_nothrow_constructible_v<T, std::remove_cvref_t<T>&>)
 {
     using U = std::remove_cvref_t<T>;
@@ -187,7 +193,7 @@ constexpr std::optional<T> any_cast(any& operand)
 }
 
 template<typename T>
-constexpr std::optional<T> any_cast(any&& operand)
+[[nodiscard]] constexpr std::optional<T> any_cast(any&& operand)
     noexcept(std::is_nothrow_constructible_v<T, std::remove_cvref_t<T>&&>)
 {
     using U = std::remove_cvref_t<T>;
@@ -196,6 +202,16 @@ constexpr std::optional<T> any_cast(any&& operand)
         return std::move(*ptr);
     }
     return std::nullopt;
+}
+
+template<typename T, typename... Args>
+[[nodiscard]] constexpr any make_any(Args&&... args) {
+    return any(std::in_place_type<T>, std::forward<Args>(args)...);
+}
+
+template<typename T, typename U, typename... Args>
+[[nodiscard]] constexpr any make_any(std::initializer_list<U> il, Args&&... args) {
+    return any(std::in_place_type<T>, il, std::forward<Args>(args)...);
 }
 
 } // namespace clap::util
