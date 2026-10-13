@@ -2,20 +2,9 @@
 #ifndef CCCLAP_PARSER_DETAILS_ARGUMENT_VALUE_PARSER_H
 #define CCCLAP_PARSER_DETAILS_ARGUMENT_VALUE_PARSER_H 1
 
-#include <meta>
 #include <concepts>
-#include <type_traits>
-#include <initializer_list>
-#include <utility>
-#include <memory>
-#include <ranges>
-#include <optional>
-#include <functional>
-#include <map>
 
-#include <clap/parser/token.hh>
-#include <clap/util/cstring.hh>
-#include <clap/util/any.hh>
+#include <clap/parser/parsing_context.hh>
 
 // TODO: redesign arg parser by using a two steps parsing model:
 // 1. (map) convert from cstring_view to a intermediate object target type
@@ -23,57 +12,9 @@
 
 namespace clap::details {
 
-class parsing_context
-{
-public:
-    using iterator = token_view::iterator;
-
-    constexpr iterator current() const noexcept { return current_; }
-    constexpr token_view argv() const noexcept { return args_; }
-
-    template<typename T, typename Key>
-        requires std::is_object_v<T>
-    constexpr std::optional<T&> query_global_state(const Key& key) {
-        if (auto it = custom_global_states_.find(key); it != custom_global_states_.end()) {
-            if (auto* ptr = util::any_cast<T>(std::addressof(it->second))) {
-                return *ptr;
-            }
-        }
-        return std::nullopt;
-    }
-
-    template<typename Key, typename T>
-        requires std::constructible_from<std::string, Key>
-    constexpr std::decay_t<T>& set_global_state(Key&& key, T&& value) {
-        util::any& stored_state = custom_global_states_[std::forward<Key>(key)];
-        return stored_state.emplace<std::decay_t<T>>(std::forward<T>(value));
-    }
-
-    template<typename Key, typename T, typename... Args>
-        requires std::constructible_from<std::string, Key>
-              && std::constructible_from<std::decay_t<T>, Args...>
-    constexpr std::decay_t<T>& set_global_state(Key&& key, std::in_place_type_t<T>, Args&&... args) {
-        util::any& stored_state = custom_global_states_[std::forward<Key>(key)];
-        return stored_state.emplace<std::decay_t<T>>(std::forward<Args>(args)...);
-    }
-
-    template<typename Key, typename T, typename U, typename... Args>
-        requires std::constructible_from<std::string, Key>
-              && std::constructible_from<std::decay_t<T>, std::initializer_list<U>, Args...>
-    constexpr std::decay_t<T>& set_global_state(Key&& key, std::in_place_type_t<T>, std::initializer_list<U> il, Args&&... args) {
-        util::any& stored_state = custom_global_states_[std::forward<Key>(key)];
-        return stored_state.emplace<std::decay_t<T>>(il, std::forward<Args>(args)...);
-    }
-
-private:
-    token_view args_ = {};
-    iterator current_ = {};
-    std::map<std::string, util::any, std::less<>> custom_global_states_;
-};
-
 template<typename Parser>
 concept arg_val_parser = requires (Parser& p, parsing_context& ctx) {
-    { p.parse(ctx) } -> std::same_as<typename parsing_context::iterator>;
+    { p.parse(ctx) } -> std::same_as<typename parsing_context::cursor>;
 };
 
 // template<typename Mapper, typename Reducer>

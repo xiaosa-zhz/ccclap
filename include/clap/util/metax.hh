@@ -56,6 +56,23 @@ consteval cstring_view format_static_string(std::format_string<Args...> fmt, Arg
     return std::define_static_string(std::format(fmt, std::forward<Args>(args)...));
 }
 
+template<typename T, typename Like>
+using like_t = [:[] consteval {
+    using U = Like&&;
+    const auto src = ^^U;
+    auto dest = remove_cvref(^^T);
+    if (is_const(remove_reference(src))) {
+        dest = add_const(dest);
+    }
+    if (is_lvalue_reference_type(src)) {
+        dest = add_lvalue_reference(dest);
+    }
+    if (is_rvalue_reference_type(src)) {
+        dest = add_rvalue_reference(dest);
+    }
+    return dest;
+}():];
+
 } // namespace clap::metax
 
 #endif // !CCCLAP_UTIL_METAX_H
