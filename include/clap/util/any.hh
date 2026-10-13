@@ -2,11 +2,10 @@
 #ifndef CCCLAP_UTIL_ANY_H
 #define CCCLAP_UTIL_ANY_H 1
 
-// std::any but constexpr compatible
+// Basically std::any but constexpr compatible
 
 #include <concepts>
 #include <type_traits>
-#include <typeinfo>
 #include <initializer_list>
 #include <utility>
 #include <optional>
@@ -20,27 +19,24 @@ class any
     struct metainfo {
         void (*deleter)(void*) noexcept;
         void* (*copy)(const void*);
-        const std::type_info& type;
     };
 
     template<typename T>
-        requires std::is_copy_constructible_v<T>
+        requires std::same_as<T, std::decay_t<T>>
+              && std::is_copy_constructible_v<T>
     static constexpr metainfo info_of = {
         .deleter = +[](void* ptr) static noexcept { delete static_cast<T*>(ptr); },
         .copy = +[](const void* ptr) static -> void* { return new T(*static_cast<const T*>(ptr)); },
-        .type = typeid(T),
     };
 
-    [[noreturn]] static constexpr void empty_info_check() {
-        [[unlikely]];
+    [[noreturn]] static constexpr void oops_empty() {
         contract_assert(false);
         std::unreachable();
     }
 
     static constexpr metainfo empty_info = {
-        .deleter = +[] [[noreturn]] (void* ptr) static noexcept { empty_info_check(); },
-        .copy = +[] [[noreturn]] (const void* ptr) static -> void* { empty_info_check(); },
-        .type = typeid(void),
+        .deleter = +[] [[noreturn]] (void* ptr) static noexcept { oops_empty(); },
+        .copy = +[] [[noreturn]] (const void* ptr) static -> void* { oops_empty(); },
     };
 
 public:
@@ -129,7 +125,18 @@ public:
     }
 
     [[nodiscard]] constexpr bool has_value() const noexcept { return data_ != nullptr; }
-    [[nodiscard]] constexpr const std::type_info& type() const noexcept { return info_->type; }
+
+    template<typename T>
+    [[nodiscard]] constexpr bool has_type() const noexcept {
+        using U = std::decay_t<T>;
+        if constexpr (std::is_copy_constructible_v<U>) {
+            return info_ == &info_of<U>;
+        } else if constexpr (std::is_void_v<U>) {
+            return info_ == &empty_info;
+        } else {
+            return false;
+        }
+    }
 
     template<typename T>
     friend constexpr T* any_cast(any* operand) noexcept;
@@ -153,7 +160,7 @@ private:
 template<typename T>
 [[nodiscard]] constexpr T* any_cast(any* operand) noexcept {
     static_assert(!std::is_void_v<T>);
-    if (operand && operand->type() == typeid(T)) {
+    if (operand && operand->has_type<T>()) {
         return static_cast<T*>(operand->data_);
     }
     return nullptr;
@@ -162,7 +169,7 @@ template<typename T>
 template<typename T>
 [[nodiscard]] constexpr const T* any_cast(const any* operand) noexcept {
     static_assert(!std::is_void_v<T>);
-    if (operand && operand->type() == typeid(T)) {
+    if (operand && operand->has_type<T>()) {
         return static_cast<const T*>(operand->data_);
     }
     return nullptr;

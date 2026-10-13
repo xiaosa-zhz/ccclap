@@ -123,6 +123,8 @@ void any_test() {
     consteval {
         any a = 42;
         contract_assert(a.has_value());
+        contract_assert(a.has_type<int>());
+        contract_assert(not a.has_type<double>());
     }
 
     // 1. default-constructed any is empty
@@ -131,8 +133,8 @@ void any_test() {
 
     // 2. store a value, cast it back, and inspect its type
     a = 42;
-    i18n::println("any(42) has_value: {}, any_cast<int>: {}, type == typeid(int): {}",
-                  a.has_value(), any_cast<int>(a).value(), a.type() == typeid(int));
+    i18n::println("any(42) has_value: {}, any_cast<int>: {}, has_type<int>: {}, has_type<double>: {}",
+                  a.has_value(), any_cast<int>(a).value(), a.has_type<int>(), a.has_type<double>());
 
     // 3. failed casts return nullopt / nullptr instead of throwing
     i18n::println("any_cast<double>(int any) has_value: {}", any_cast<double>(a).has_value());
@@ -141,7 +143,8 @@ void any_test() {
     // 4. emplace constructs in place and returns a reference
     std::string& stored = a.emplace<std::string>("hello");
     stored += ", any";
-    i18n::println("emplace<std::string>: {}", *any_cast<std::string>(&a));
+    i18n::println("emplace<std::string>: {}, has_type<std::string>: {}",
+                  *any_cast<std::string>(&a), a.has_type<std::string>());
 
     // 5. copies are deep, so mutating one does not affect the other
     any b = a;
@@ -154,14 +157,21 @@ void any_test() {
     i18n::println("move: c = {}, b.has_value: {}",
                   *any_cast<std::string>(&c), b.has_value());
 
-    // 7. reset clears the value and type() falls back to void
+    // 7. reset clears the value and has_type falls back to false
     c.reset();
-    i18n::println("after reset: has_value = {}, type == typeid(void) = {}",
-                  c.has_value(), c.type() == typeid(void));
+    i18n::println("after reset: has_value = {}, has_type<int> = {}, has_type<std::string> = {}",
+                  c.has_value(), c.has_type<int>(), c.has_type<std::string>());
 
     // 8. in-place construction and casting a const any
     const any d(std::in_place_type<int>, 7);
     i18n::println("in_place<int>(7): {}", any_cast<int>(d).value());
+
+    // 9. has_type also compiles for a type any could never store
+    struct non_copyable {
+        non_copyable() = default;
+        non_copyable(const non_copyable&) = delete;
+    };
+    i18n::println("has_type<non_copyable> on string any: {}", a.has_type<non_copyable>());
 }
 
 int main(int argc, char** argv) {
