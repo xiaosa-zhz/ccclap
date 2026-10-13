@@ -10,7 +10,6 @@
 #include <initializer_list>
 #include <utility>
 #include <optional>
-#include <memory>
 
 #include <clap/util/metax.hh>
 
@@ -19,43 +18,46 @@ namespace clap::util {
 class any
 {
     struct metainfo {
-        void (*deleter)(void*) noexcept = nullptr;
-        void* (*copy)(const void*) = nullptr;
-        std::optional<const std::type_info&> type = typeid(void);
+        void (*deleter)(void*) noexcept;
+        void* (*copy)(const void*);
+        const std::type_info& type;
     };
 
     template<typename T>
         requires std::is_copy_constructible_v<T>
     static constexpr metainfo info_of = {
-        .deleter = +[](void* ptr) noexcept { delete static_cast<T*>(ptr); },
-        .copy = +[](const void* ptr) -> void* { return new T(*static_cast<const T*>(ptr)); },
+        .deleter = +[](void* ptr) static noexcept { delete static_cast<T*>(ptr); },
+        .copy = +[](const void* ptr) static -> void* { return new T(*static_cast<const T*>(ptr)); },
         .type = typeid(T)
     };
+
+    static constexpr metainfo empty_info = { nullptr, nullptr, typeid(void) };
 
 public:
     constexpr any() = default;
 
     constexpr any(const any& other)
-        : data_(other.info_.copy(other.data_)), info_(other.info_)
+        pre (other.data_ || other.info_ == &empty_info)
+        : data_(other.data_ ? other.info_->copy(other.data_) : nullptr), info_(other.info_)
     {}
 
     constexpr any(any&& other) noexcept :
         data_(std::exchange(other.data_, nullptr)),
-        info_(std::exchange(other.info_, {}))
+        info_(std::exchange(other.info_, &empty_info))
     {}
 
     template<typename T, typename... Args>
         requires std::is_copy_constructible_v<std::decay_t<T>>
               && std::constructible_from<std::decay_t<T>, Args...>
     explicit constexpr any(std::in_place_type_t<T>, Args&&... args)
-        : data_(new T(std::forward<Args>(args)...)), info_(info_of<T>)
+        : data_(new std::decay_t<T>(std::forward<Args>(args)...)), info_(&info_of<std::decay_t<T>>)
     {}
 
     template<typename T, typename U, typename... Args>
         requires std::is_copy_constructible_v<std::decay_t<T>>
               && std::constructible_from<std::decay_t<T>, std::initializer_list<U>, Args...>
     explicit constexpr any(std::in_place_type_t<T>, std::initializer_list<U> il, Args&&... args)
-        : data_(new T(il, std::forward<Args>(args)...)), info_(info_of<T>)
+        : data_(new std::decay_t<T>(il, std::forward<Args>(args)...)), info_(&info_of<std::decay_t<T>>)
     {}
 
     template<typename T>
@@ -111,15 +113,15 @@ public:
 
     constexpr void reset() noexcept {
         if (data_) {
-            contract_assert(info_.deleter != nullptr);
-            info_.deleter(data_);
+            contract_assert(info_ != &empty_info);
+            info_->deleter(data_);
             data_ = nullptr;
-            info_ = metainfo{};
+            info_ = &empty_info;
         }
     }
 
     constexpr bool has_value() const noexcept { return data_ != nullptr; }
-    constexpr const std::type_info& type() const noexcept { return *info_.type; }
+    constexpr const std::type_info& type() const noexcept { return info_->type; }
 
     template<typename T>
     friend constexpr T* any_cast(any* operand) noexcept;
@@ -137,7 +139,7 @@ public:
 
 private:
     void* data_ = nullptr;
-    metainfo info_;
+    const metainfo* info_ = &empty_info;
 };
 
 template<typename T>
@@ -164,7 +166,7 @@ constexpr std::optional<T> any_cast(const any& operand)
 {
     using U = std::remove_cvref_t<T>;
     static_assert(std::is_constructible_v<T, const U&>);
-    if (auto* ptr = any_cast<U>(std::addressof(operand))) {
+    if (auto* ptr = any_cast<U>(&operand)) {
         return *ptr;
     }
     return std::nullopt;
@@ -176,7 +178,7 @@ constexpr std::optional<T> any_cast(any& operand)
 {
     using U = std::remove_cvref_t<T>;
     static_assert(std::is_constructible_v<T, U&>);
-    if (auto* ptr = any_cast<U>(std::addressof(operand))) {
+    if (auto* ptr = any_cast<U>(&operand)) {
         return *ptr;
     }
     return std::nullopt;
@@ -188,7 +190,7 @@ constexpr std::optional<T> any_cast(any&& operand)
 {
     using U = std::remove_cvref_t<T>;
     static_assert(std::is_constructible_v<T, U&&>);
-    if (auto* ptr = any_cast<U>(std::addressof(operand))) {
+    if (auto* ptr = any_cast<U>(&operand)) {
         return std::move(*ptr);
     }
     return std::nullopt;
