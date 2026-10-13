@@ -126,11 +126,14 @@ public:
     template<typename T>
     friend constexpr const T* any_cast(const any* operand) noexcept;
     template<typename T>
-    friend constexpr T any_cast(const any& operand);
+    friend constexpr std::optional<T> any_cast(const any& operand)
+        noexcept(std::is_nothrow_constructible_v<T, const std::remove_cvref_t<T>&>);
     template<typename T>
-    friend constexpr T any_cast(any& operand);
+    friend constexpr std::optional<T> any_cast(any& operand)
+        noexcept(std::is_nothrow_constructible_v<T, std::remove_cvref_t<T>&>);
     template<typename T>
-    friend constexpr T any_cast(any&& operand);
+    friend constexpr std::optional<T> any_cast(any&& operand)
+        noexcept(std::is_nothrow_constructible_v<T, std::remove_cvref_t<T>&&>);
 
 private:
     void* data_ = nullptr;

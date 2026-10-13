@@ -4,6 +4,7 @@
 #include <clap/util/ascii.hh>
 #include <clap/util/i18n.hh>
 #include <clap/util/enum.hh>
+#include <clap/util/any.hh>
 #include <clap/parser/token.hh>
 #include <clap/parser/parser.hh>
 #include <clap/parser/details/arg_val_parser.hh>
@@ -113,6 +114,55 @@ constexpr auto help_text = [] consteval {
     parser.parse(^^test_command::copy_cat);
     return parser.help_text;
 }();
+
+void any_test() {
+    using clap::util::any;
+    using clap::util::any_cast;
+
+    // 0. constant evaluation
+    consteval {
+        any a = 42;
+        contract_assert(a.has_value());
+    }
+
+    // 1. default-constructed any is empty
+    any a;
+    i18n::println("any default has_value: {}", a.has_value());
+
+    // 2. store a value, cast it back, and inspect its type
+    a = 42;
+    i18n::println("any(42) has_value: {}, any_cast<int>: {}, type == typeid(int): {}",
+                  a.has_value(), any_cast<int>(a).value(), a.type() == typeid(int));
+
+    // 3. failed casts return nullopt / nullptr instead of throwing
+    i18n::println("any_cast<double>(int any) has_value: {}", any_cast<double>(a).has_value());
+    i18n::println("any_cast<double>(&int any) == nullptr: {}", any_cast<double>(&a) == nullptr);
+
+    // 4. emplace constructs in place and returns a reference
+    std::string& stored = a.emplace<std::string>("hello");
+    stored += ", any";
+    i18n::println("emplace<std::string>: {}", *any_cast<std::string>(&a));
+
+    // 5. copies are deep, so mutating one does not affect the other
+    any b = a;
+    any_cast<std::string>(&b)->append("!");
+    i18n::println("copy: a = {}, b = {}",
+                  *any_cast<std::string>(&a), *any_cast<std::string>(&b));
+
+    // 6. moves transfer the value and leave the source empty
+    any c = std::move(b);
+    i18n::println("move: c = {}, b.has_value: {}",
+                  *any_cast<std::string>(&c), b.has_value());
+
+    // 7. reset clears the value and type() falls back to void
+    c.reset();
+    i18n::println("after reset: has_value = {}, type == typeid(void) = {}",
+                  c.has_value(), c.type() == typeid(void));
+
+    // 8. in-place construction and casting a const any
+    const any d(std::in_place_type<int>, 7);
+    i18n::println("in_place<int>(7): {}", any_cast<int>(d).value());
+}
 
 int main(int argc, char** argv) {
     parse(argc, argv);
@@ -236,6 +286,10 @@ int main(int argc, char** argv) {
         clap::string_to_enum<style>("screaming_snake") == style::screaming_snake);
     i18n::println("string_to_enum<style>(\"INVALID\") has_value:                         {}",
         clap::string_to_enum<style>("INVALID").has_value());
+
+    // --- clap::util::any demo ---
+    i18n::println("");
+    any_test();
 
     return 0;
 }
