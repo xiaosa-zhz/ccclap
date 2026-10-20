@@ -29,14 +29,9 @@ class any
         .copy = +[](const void* ptr) static -> void* { return new T(*static_cast<const T*>(ptr)); },
     };
 
-    [[noreturn]] static constexpr void oops_empty() {
-        contract_assert(false);
-        std::unreachable();
-    }
-
     static constexpr metainfo empty_info = {
-        .deleter = +[] [[noreturn]] (void* ptr) static noexcept { oops_empty(); },
-        .copy = +[] [[noreturn]] (const void* ptr) static -> void* { oops_empty(); },
+        .deleter = +[] [[noreturn]] (void*) static noexcept pre (false) { std::unreachable(); },
+        .copy = +[] [[noreturn]] (const void*) static -> void* pre (false) { std::unreachable(); },
     };
 
 public:

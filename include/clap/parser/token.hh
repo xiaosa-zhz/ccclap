@@ -32,6 +32,11 @@ public:
 
     class iterator
     {
+        struct arrow_operator_proxy {
+            constexpr const token* operator->() const noexcept { return &tok; }
+            token tok;
+        };
+
     public:
         using iterator_concept = std::random_access_iterator_tag;
         using iterator_category = std::random_access_iterator_tag;
@@ -45,6 +50,10 @@ public:
 
         constexpr reference operator*() const noexcept {
             return { .text = *argv, .origin = *original_argv };
+        }
+
+        constexpr arrow_operator_proxy operator->() const noexcept {
+            return { .tok = **this };
         }
 
         constexpr reference operator[](difference_type n) const noexcept {
